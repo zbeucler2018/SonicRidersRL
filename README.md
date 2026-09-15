@@ -140,6 +140,17 @@ in-MEM1 controller record. It keeps the two raw ownership-related bytes,
 `ai_control` and `player_type`, distinct rather than prematurely assigning
 human/CPU semantics.
 
+## Milestone 8 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.frame_semantics_probe
+```
+
+This empirically defines one active-race backend frame as one caller-issued
+`retro_run()`: runner, video, and game-side controller clocks all advance by
+the requested amount in the stock race fixture.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -161,6 +172,8 @@ human/CPU semantics.
 - [Milestone 6 operation and validation](docs/milestone-6.md)
 - [Milestone 7 architecture decision](docs/milestone-7-architecture.md)
 - [Milestone 7 operation and validation](docs/milestone-7.md)
+- [Milestone 8 architecture decision](docs/milestone-8-architecture.md)
+- [Milestone 8 operation and validation](docs/milestone-8.md)
 
 ## External references
 

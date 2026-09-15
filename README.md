@@ -114,6 +114,17 @@ replays exactly. It writes a diagnostic 640x528 PPM frame and its report below
 the repository's ignored `.local/` directory. It is not yet a human-controlled
 P1 race fixture.
 
+## Milestone 6 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.game_input_probe
+```
+
+This uses one live-race snapshot to show a one-frame native P1 Start input
+takes a different, captured game branch than a neutral trace, while replaying
+exactly from the same state. The attract-mode racers are still AI-controlled.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -131,6 +142,8 @@ P1 race fixture.
 - [Milestone 4 operation and validation](docs/milestone-4.md)
 - [Milestone 5 architecture decision](docs/milestone-5-architecture.md)
 - [Milestone 5 operation and validation](docs/milestone-5.md)
+- [Milestone 6 architecture decision](docs/milestone-6-architecture.md)
+- [Milestone 6 operation and validation](docs/milestone-6.md)
 
 ## External references
 

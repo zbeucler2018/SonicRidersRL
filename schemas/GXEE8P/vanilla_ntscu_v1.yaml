@@ -16,6 +16,13 @@ player_array:
     note: _Main.rel is relocatable; never use a fixed guest address.
   validation:
     fresh_menu_character_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+game_mode:
+  resolver: gxee8p_main_rel_game_mode_pair_reference_v1
+  status: vanilla-validated-at-boot-flow-and-attract
+  words:
+    - {name: current_game_mode, type: u32, provenance: community-derived, status: raw-telemetry}
+    - {name: mode_detail, type: u32, provenance: community-derived, status: raw-telemetry}
+    - {name: mode_detail_delta, type: s32, provenance: derived, status: raw-telemetry}
 fields:
   - {name: input_address, offset: 0x000, type: u32, provenance: community-derived, status: unvalidated-in-race}
   - {name: character, offset: 0x0BA, type: u8, provenance: community-derived, status: vanilla-validated-at-menu}

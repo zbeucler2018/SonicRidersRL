@@ -5,11 +5,14 @@ from sonic_riders_rl.backend import MemoryRegion
 from sonic_riders_rl.telemetry import (
     BigEndianMemory,
     CONTROLLER_SIZE,
+    GameModeTelemetry,
     MAX_PLAYERS,
     PLAYER_STRIDE,
     TelemetryResolutionError,
+    read_game_mode,
     read_player_controllers,
     read_players,
+    resolve_game_mode,
     resolve_players_array,
     validate_menu_player_order,
 )
@@ -42,6 +45,25 @@ def install_player_reference(backend: FakeMemoryBackend, code_address: int, targ
     backend.write(code_address, reference)
 
 
+def install_game_mode_reference(
+    backend: FakeMemoryBackend, code_address: int, game_mode: int, mode_detail: int
+) -> None:
+    game_mode_high = ((game_mode + 0x8000) >> 16) & 0xFFFF
+    mode_detail_high = ((mode_detail + 0x8000) >> 16) & 0xFFFF
+    reference = (
+        b"\x3c\x80"
+        + game_mode_high.to_bytes(2, "big")
+        + b"\x3c\x60"
+        + mode_detail_high.to_bytes(2, "big")
+        + b"\x38\x84"
+        + (game_mode & 0xFFFF).to_bytes(2, "big")
+        + b"\x80\x03"
+        + (mode_detail & 0xFFFF).to_bytes(2, "big")
+        + bytes.fromhex("808400007c0400502c0000024081019438000005981e001448000188")
+    )
+    backend.write(code_address, reference)
+
+
 class TelemetryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.backend = FakeMemoryBackend()
@@ -70,6 +92,30 @@ class TelemetryTests(unittest.TestCase):
         self.backend.write(self.player_base + 0x984, struct.pack(">i", 12345))
         self.backend.write(self.player_base + 0xB98, struct.pack(">I", 42))
         self.backend.write(self.player_base + 0xBC4, struct.pack(">f", 321.25))
+
+    def test_resolves_relocatable_game_mode_pair_and_decodes_big_endian_values(self) -> None:
+        game_mode_address = 0x8001A234
+        mode_detail_address = 0x80005678
+        install_game_mode_reference(
+            self.backend, 0x80003000, game_mode_address, mode_detail_address
+        )
+        self.backend.write(game_mode_address, struct.pack(">I", 700))
+        self.backend.write(mode_detail_address, struct.pack(">I", 703))
+
+        resolution = resolve_game_mode(self.backend)
+        self.assertEqual(resolution.game_mode_address, game_mode_address)
+        self.assertEqual(resolution.mode_detail_address, mode_detail_address)
+        self.assertEqual(resolution.reference_sites, (0x80003000,))
+        self.assertEqual(
+            read_game_mode(self.backend, resolution),
+            GameModeTelemetry(game_mode=700, mode_detail=703, mode_detail_delta=3),
+        )
+
+    def test_game_mode_resolver_rejects_distinct_signature_targets(self) -> None:
+        install_game_mode_reference(self.backend, 0x80003000, 0x80001234, 0x80005678)
+        install_game_mode_reference(self.backend, 0x80003100, 0x8000789A, 0x80009ABC)
+        with self.assertRaises(TelemetryResolutionError):
+            resolve_game_mode(self.backend)
 
     def test_resolves_relocatable_player_base_and_decodes_big_endian_fields(self) -> None:
         resolution = resolve_players_array(self.backend)
@@ -108,6 +154,8 @@ class TelemetryTests(unittest.TestCase):
         backend = FakeMemoryBackend()
         with self.assertRaises(TelemetryResolutionError):
             resolve_players_array(backend)
+        with self.assertRaises(TelemetryResolutionError):
+            resolve_game_mode(backend)
 
     def test_big_endian_memory_helpers(self) -> None:
         self.backend.write(0x80000300, bytes.fromhex("01020304c0600000"))

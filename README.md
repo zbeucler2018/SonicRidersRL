@@ -164,6 +164,18 @@ but not direct steering: Player 0/1 can retain `player_type=0` while
 `ai_control=1`. The next prerequisite is a normal menu-driven race setup, not
 an RL environment.
 
+## Milestone 11 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m unittest discover -s tests -v
+python3 -m sonic_riders_rl.game_mode_probe
+```
+
+This resolves the dynamically loaded retail game-mode and mode-detail words
+from a paired `_Main.rel` instruction signature, then records raw state-machine
+values at boot-flow and stock-attract checkpoints. It remains telemetry only.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -191,6 +203,8 @@ an RL environment.
 - [Milestone 9 compatibility result](docs/milestone-9.md)
 - [Milestone 10 architecture decision](docs/milestone-10-architecture.md)
 - [Milestone 10 investigation result](docs/milestone-10.md)
+- [Milestone 11 architecture decision](docs/milestone-11-architecture.md)
+- [Milestone 11 operation and validation](docs/milestone-11.md)
 
 ## External references
 

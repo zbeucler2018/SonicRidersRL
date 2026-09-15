@@ -41,6 +41,36 @@ class PlayerArrayResolution:
 
 
 @dataclass(frozen=True)
+class GameModeResolution:
+    """Runtime addresses for the retail game's mode and mode-detail words.
+
+    ``_Main.rel`` is loaded at a runtime-dependent address.  These addresses
+    are therefore recovered from a paired instruction reference rather than
+    copied from one emulator run.
+    """
+
+    game_mode_address: int
+    mode_detail_address: int
+    reference_sites: tuple[int, ...]
+    provenance: str = "community-derived; runtime-relocation-resolved"
+
+
+@dataclass(frozen=True)
+class GameModeTelemetry:
+    """Two raw game-mode words from the retail GXEE8P state machine.
+
+    ``mode_detail_delta`` is their signed arithmetic difference. It matches the
+    community ``RaceState`` convention in a race mode, but it is not meaningful
+    as a race state during boot or menus. This substrate therefore keeps the
+    raw, neutral name and assigns no environment semantics to it.
+    """
+
+    game_mode: int
+    mode_detail: int
+    mode_detail_delta: int
+
+
+@dataclass(frozen=True)
 class PlayerTelemetry:
     """One read-only Player record with community-derived field names."""
 
@@ -128,6 +158,29 @@ _PLAYER_REFERENCE_SUFFIX = b"\x54\x00\x06\x31\x1c\x85\x10\x80\x7f\xc3\x22\x14"
 _PLAYER_REFERENCE_SIZE = 8 + len(_PLAYER_REFERENCE_SUFFIX)
 
 
+# In the same vanilla GXEE8P _Main REL, this instruction sequence loads the
+# paired CurrentGameMode and geGame_ModeDetail words:
+#
+#   lis   r4, CurrentGameMode@ha
+#   lis   r3, geGame_ModeDetail@ha
+#   addi  r4, r4, CurrentGameMode@l
+#   lwz   r0, geGame_ModeDetail@l(r3)
+#   lwz   r4, 0(r4)
+#   subf  r0, r4, r0
+#   cmpwi r0, 2
+#   ble   ...
+#
+# The four immediate values are relocation-dependent.  The fixed tail and
+# paired target reconstruction avoid treating a value-shaped MEM1 word as a
+# game-mode address.  This resolver is intentionally GXEE8P-specific.
+_GAME_MODE_REFERENCE_PREFIX = b"\x3c\x80"
+_GAME_MODE_DETAIL_SECOND_OP = b"\x3c\x60"
+_GAME_MODE_REFERENCE_THIRD_OP = b"\x38\x84"
+_GAME_MODE_DETAIL_FOURTH_OP = b"\x80\x03"
+_GAME_MODE_REFERENCE_SUFFIX = b"\x80\x84\x00\x00\x7c\x04\x00\x50\x2c\x00\x00\x02\x40\x81\x01\x94\x38\x00\x00\x05\x98\x1e\x00\x14\x48\x00\x01\x88"
+_GAME_MODE_REFERENCE_SIZE = 16 + len(_GAME_MODE_REFERENCE_SUFFIX)
+
+
 def resolve_players_array(backend: MemoryBackend) -> PlayerArrayResolution:
     """Resolve the relocatable vanilla ``players[]`` base from live MEM1 code.
 
@@ -183,6 +236,96 @@ def resolve_players_array(backend: MemoryBackend) -> PlayerArrayResolution:
         raise TelemetryResolutionError(f"ambiguous GXEE8P players[] references: {candidates}")
     target, sites = next(iter(sites_by_target.items()))
     return PlayerArrayResolution(guest_base=target, reference_sites=tuple(sorted(set(sites))))
+
+
+def resolve_game_mode(backend: MemoryBackend) -> GameModeResolution:
+    """Resolve the two relocatable GXEE8P game-mode words from live REL code.
+
+    The resolver accepts only the one paired source-code shape documented
+    above.  Both reconstructed addresses must be distinct, four-byte ranges
+    inside the active MEM1 mapping, and every matching reference must agree.
+    It fails closed on a different executable layout.
+    """
+
+    memory = backend.memory
+    chunk_size = min(MAX_MEMORY_TRANSFER, memory.size)
+    if chunk_size <= 0:
+        raise TelemetryResolutionError("MEM1 is empty")
+
+    sites_by_target_pair: dict[tuple[int, int], list[int]] = {}
+    overlap = b""
+    for offset in range(0, memory.size, chunk_size):
+        chunk = backend.read_memory(memory.guest_base + offset, min(chunk_size, memory.size - offset))
+        window = overlap + chunk
+        window_guest_base = memory.guest_base + offset - len(overlap)
+        search_from = 0
+        while True:
+            suffix_offset = window.find(_GAME_MODE_REFERENCE_SUFFIX, search_from)
+            if suffix_offset < 0:
+                break
+            reference_offset = suffix_offset - 16
+            search_from = suffix_offset + 1
+            if reference_offset < 0:
+                continue
+            reference = window[reference_offset : reference_offset + _GAME_MODE_REFERENCE_SIZE]
+            if (
+                reference[:2] != _GAME_MODE_REFERENCE_PREFIX
+                or reference[4:6] != _GAME_MODE_DETAIL_SECOND_OP
+                or reference[8:10] != _GAME_MODE_REFERENCE_THIRD_OP
+                or reference[12:14] != _GAME_MODE_DETAIL_FOURTH_OP
+                or len(reference) != _GAME_MODE_REFERENCE_SIZE
+            ):
+                continue
+
+            game_mode_address = _ppc_ha_l_address(reference[2:4], reference[10:12])
+            mode_detail_address = _ppc_ha_l_address(reference[6:8], reference[14:16])
+            if (
+                game_mode_address == mode_detail_address
+                or not _contains(memory, game_mode_address, 4)
+                or not _contains(memory, mode_detail_address, 4)
+            ):
+                continue
+            sites_by_target_pair.setdefault((game_mode_address, mode_detail_address), []).append(
+                window_guest_base + reference_offset
+            )
+
+        overlap = window[-(_GAME_MODE_REFERENCE_SIZE - 1) :]
+
+    if not sites_by_target_pair:
+        raise TelemetryResolutionError(
+            "GXEE8P game-mode reference was not found; confirm that the vanilla _Main REL is loaded"
+        )
+    if len(sites_by_target_pair) != 1:
+        candidates = ", ".join(
+            f"(0x{game_mode:08x}, 0x{mode_detail:08x})"
+            for game_mode, mode_detail in sorted(sites_by_target_pair)
+        )
+        raise TelemetryResolutionError(f"ambiguous GXEE8P game-mode references: {candidates}")
+    (game_mode_address, mode_detail_address), sites = next(iter(sites_by_target_pair.items()))
+    return GameModeResolution(
+        game_mode_address=game_mode_address,
+        mode_detail_address=mode_detail_address,
+        reference_sites=tuple(sorted(set(sites))),
+    )
+
+
+def read_game_mode(
+    backend: MemoryBackend, resolution: GameModeResolution
+) -> GameModeTelemetry:
+    """Read raw GXEE8P mode words and their signed state-machine delta."""
+
+    if not _contains(backend.memory, resolution.game_mode_address, 4):
+        raise TelemetryResolutionError("resolved game-mode address is outside the active MEM1 mapping")
+    if not _contains(backend.memory, resolution.mode_detail_address, 4):
+        raise TelemetryResolutionError("resolved mode-detail address is outside the active MEM1 mapping")
+    memory = BigEndianMemory(backend)
+    game_mode = memory.read_u32(resolution.game_mode_address)
+    mode_detail = memory.read_u32(resolution.mode_detail_address)
+    return GameModeTelemetry(
+        game_mode=game_mode,
+        mode_detail=mode_detail,
+        mode_detail_delta=mode_detail - game_mode,
+    )
 
 
 def read_players(backend: MemoryBackend, resolution: PlayerArrayResolution) -> tuple[PlayerTelemetry, ...]:
@@ -243,6 +386,14 @@ def _contains(memory: MemoryRegion, guest_address: int, length: int) -> bool:
         and guest_address >= memory.guest_base
         and guest_address + length <= memory.guest_base + memory.size
     )
+
+
+def _ppc_ha_l_address(high_bytes: bytes, low_bytes: bytes) -> int:
+    """Reconstruct a PowerPC ``symbol@ha`` / signed ``symbol@l`` address."""
+
+    high = int.from_bytes(high_bytes, "big")
+    low = int.from_bytes(low_bytes, "big", signed=True)
+    return ((high << 16) + low) & 0xFFFF_FFFF
 
 
 def _decode_player(raw: bytes, offset: int) -> PlayerTelemetry:

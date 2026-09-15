@@ -23,7 +23,7 @@ It is therefore evidence of game-level control propagation rather than just
 frontend bookkeeping.
 
 The fixture is deliberately the unmodified attract demo, not a RAM-forced
-race. Its racers are AI-controlled, so a stick trace has no player-position
+race. Its `ai_control` flags are set, so a stick trace has no player-position
 effect there. The milestone does not claim human-racer steering; it makes that
 remaining limitation explicit.
 
@@ -31,7 +31,7 @@ remaining limitation explicit.
 
 - **Callback counts only:** useful plumbing evidence, but cannot establish a
   game-visible effect.
-- **Directly changing `ai_control` or spawning a race through MEM1 writes:**
+- **Directly changing control flags or spawning a race through MEM1 writes:**
   would invalidate the normal-game-flow premise and make later reset results
   less trustworthy.
 - **A manual visual assertion:** cannot be reproduced in CI or from a saved

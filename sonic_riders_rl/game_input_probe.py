@@ -2,7 +2,7 @@
 
 This deliberately uses the stock attract-mode race fixture because it is the
 first stable live state available without memory writes or a menu script. The
-demo racers remain AI-controlled, so this is an application-level input-path
+demo's ``ai_control`` flags remain set, so this is an application-level input-path
 probe, not a claim that it proves steering a human racer.
 """
 
@@ -127,7 +127,7 @@ def main() -> None:
             "fixture": {
                 "kind": "stock attract-mode race",
                 "boot_frames": boot.frames,
-                "all_racers_ai_controlled": True,
+                "all_ai_control_flags_set": True,
                 "snapshot_size": snapshot.size,
                 "snapshot_checksum": f"0x{snapshot.checksum:016x}",
                 "baseline_mem1_checksum": f"0x{baseline:016x}",

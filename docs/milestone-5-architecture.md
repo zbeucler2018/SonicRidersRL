@@ -8,8 +8,8 @@ frame capture command, backed by the already-required hardware-rendered EGL
 pbuffer.
 
 The fixture is reached by 9,000 frontend-controlled `retro_run()` calls from a
-fresh GXEE8P boot. It has all eight racers active, but all are AI-controlled.
-It is therefore suitable for validating the live player array, race-state
+fresh GXEE8P boot. It has all eight racers active and all `ai_control` bytes
+set. It is therefore suitable for validating the live player array, race-state
 snapshots, and replay at the game level. It is not described as a substitute
 for a human-controlled race setup.
 
@@ -51,4 +51,5 @@ does not put pixels into the transition API or introduce a training dependency.
   required vanilla GXEE8P build.
 - **Calling the attract demo a controlled P1 race:** its eight slots report
   `ai_control=true`; controller callback consumption is proven, but an
-  in-race P1-response assertion remains future work.
+  in-race P1-response assertion remains future work. `player_type` must also
+  be inspected before assigning ownership semantics.

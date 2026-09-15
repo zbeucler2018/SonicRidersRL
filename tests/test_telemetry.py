@@ -4,9 +4,11 @@ import unittest
 from sonic_riders_rl.backend import MemoryRegion
 from sonic_riders_rl.telemetry import (
     BigEndianMemory,
+    CONTROLLER_SIZE,
     MAX_PLAYERS,
     PLAYER_STRIDE,
     TelemetryResolutionError,
+    read_player_controllers,
     read_players,
     resolve_players_array,
     validate_menu_player_order,
@@ -44,10 +46,26 @@ class TelemetryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.backend = FakeMemoryBackend()
         self.player_base = 0x80010040
+        self.controller_base = 0x80019000
         install_player_reference(self.backend, 0x80002000, self.player_base)
         for index in range(MAX_PLAYERS):
             start = self.player_base + index * PLAYER_STRIDE
+            controller = self.controller_base + index * CONTROLLER_SIZE
+            self.backend.write(start, struct.pack(">I", controller))
             self.backend.write(start + 0x0BA, bytes((index,)))
+            self.backend.write(start + 0x0BD, bytes((index & 1,)))
+            controller_raw = bytearray(CONTROLLER_SIZE)
+            struct.pack_into(">I", controller_raw, 0x00, 100 + index)
+            struct.pack_into(">I", controller_raw, 0x08, 0x100 + index)
+            struct.pack_into(">I", controller_raw, 0x0C, 0x200 + index)
+            struct.pack_into(">b", controller_raw, 0x18, -20 + index)
+            struct.pack_into(">b", controller_raw, 0x19, 20 - index)
+            struct.pack_into(">b", controller_raw, 0x1C, -10 + index)
+            struct.pack_into(">b", controller_raw, 0x1D, 10 - index)
+            controller_raw[0x1E] = index
+            struct.pack_into(">I", controller_raw, 0x24, 0xFFFF_FFFF)
+            controller_raw[0x28] = 1
+            self.backend.write(controller, bytes(controller_raw))
         self.backend.write(self.player_base + 0x1E4, struct.pack(">f", 12.5))
         self.backend.write(self.player_base + 0x984, struct.pack(">i", 12345))
         self.backend.write(self.player_base + 0xB98, struct.pack(">I", 42))
@@ -63,6 +81,28 @@ class TelemetryTests(unittest.TestCase):
         self.assertEqual(players[0].current_air, 12345)
         self.assertEqual(players[0].rings, 42)
         self.assertEqual(players[0].stage_progress, 321.25)
+        self.assertEqual(players[1].player_type, True)
+
+    def test_decodes_bounded_player_controller_records(self) -> None:
+        players = read_players(self.backend, resolve_players_array(self.backend))
+        controllers = read_player_controllers(self.backend, players)
+        controller = controllers[3]
+        assert controller is not None
+        self.assertEqual(controller.address, self.controller_base + 3 * CONTROLLER_SIZE)
+        self.assertEqual(controller.time_since_last_input, 103)
+        self.assertEqual(controller.held_buttons, 0x103)
+        self.assertEqual(controller.pressed_buttons, 0x203)
+        self.assertEqual(controller.left_stick_x, -17)
+        self.assertEqual(controller.right_stick_y, 7)
+        self.assertEqual(controller.port, 3)
+        self.assertEqual(controller.initialization_status, 0xFFFF_FFFF)
+        self.assertTrue(controller.connected)
+
+    def test_controller_decoder_rejects_a_non_mem1_player_pointer(self) -> None:
+        self.backend.write(self.player_base, struct.pack(">I", 0x7FFF_FFF0))
+        players = read_players(self.backend, resolve_players_array(self.backend))
+        with self.assertRaises(TelemetryResolutionError):
+            read_player_controllers(self.backend, players)
 
     def test_resolver_fails_closed_without_the_exact_version_signature(self) -> None:
         backend = FakeMemoryBackend()

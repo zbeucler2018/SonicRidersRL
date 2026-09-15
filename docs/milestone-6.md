@@ -25,8 +25,8 @@ frames remain in the worker save directory under ignored `.local/`.
 
 ## Scope boundary
 
-The attract-mode racers are AI-controlled. The probe demonstrates that P1
+The attract-mode `ai_control` flags are set. The probe demonstrates that P1
 causes a deterministic visible game transition, not that P1's stick steers a
-racer. A normal-flow menu/race configuration that produces a human-controlled
-slot is still required before promoting player-0 position response or
+racer. A normal-flow menu/race configuration with validated control semantics
+is still required before promoting player-0 position response or
 stage-progress semantics to `vanilla-validated`.

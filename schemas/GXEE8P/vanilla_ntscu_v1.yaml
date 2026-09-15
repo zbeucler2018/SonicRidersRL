@@ -17,9 +17,25 @@ player_array:
   validation:
     fresh_menu_character_ids: [0, 1, 2, 3, 4, 5, 6, 7]
 fields:
+  - {name: input_address, offset: 0x000, type: u32, provenance: community-derived, status: unvalidated-in-race}
   - {name: character, offset: 0x0BA, type: u8, provenance: community-derived, status: vanilla-validated-at-menu}
   - {name: extreme_gear, offset: 0x0BB, type: u8, provenance: community-derived, status: unvalidated-in-race}
   - {name: ai_control, offset: 0x0BC, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: player_type, offset: 0x0BD, type: u8, provenance: community-derived, status: unvalidated-in-race}
+controller:
+  pointer: player.input_address
+  size: 0x30
+  fields:
+    - {name: time_since_last_input, offset: 0x00, type: u32, provenance: community-derived, status: unvalidated-in-race}
+    - {name: held_buttons, offset: 0x08, type: u32, provenance: community-derived, status: unvalidated-in-race}
+    - {name: pressed_buttons, offset: 0x0C, type: u32, provenance: community-derived, status: unvalidated-in-race}
+    - {name: left_stick_x, offset: 0x18, type: s8, provenance: community-derived, status: unvalidated-in-race}
+    - {name: left_stick_y, offset: 0x19, type: s8, provenance: community-derived, status: unvalidated-in-race}
+    - {name: right_stick_x, offset: 0x1C, type: s8, provenance: community-derived, status: unvalidated-in-race}
+    - {name: right_stick_y, offset: 0x1D, type: s8, provenance: community-derived, status: unvalidated-in-race}
+    - {name: port, offset: 0x1E, type: u8, provenance: community-derived, status: unvalidated-in-race}
+    - {name: initialization_status, offset: 0x24, type: u32, provenance: community-derived, status: unvalidated-in-race}
+    - {name: connected, offset: 0x28, type: u8, provenance: community-derived, status: unvalidated-in-race}
   - {name: x, offset: 0x1E4, type: f32, provenance: community-derived, status: unvalidated-in-race}
   - {name: y, offset: 0x1E8, type: f32, provenance: community-derived, status: unvalidated-in-race}
   - {name: z, offset: 0x1EC, type: f32, provenance: community-derived, status: unvalidated-in-race}

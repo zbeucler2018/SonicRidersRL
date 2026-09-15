@@ -11,9 +11,11 @@ from .backend import (
 )
 from .telemetry import (
     BigEndianMemory,
+    ControllerTelemetry,
     PlayerArrayResolution,
     PlayerTelemetry,
     TelemetryResolutionError,
+    read_player_controllers,
     read_players,
     resolve_players_array,
 )
@@ -21,6 +23,7 @@ from .telemetry import (
 __all__ = [
     "BackendConfig",
     "BigEndianMemory",
+    "ControllerTelemetry",
     "ControllerState",
     "GameCubeButton",
     "LibretroDolphinBackend",
@@ -31,5 +34,6 @@ __all__ = [
     "StepResult",
     "TelemetryResolutionError",
     "read_players",
+    "read_player_controllers",
     "resolve_players_array",
 ]

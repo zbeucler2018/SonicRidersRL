@@ -17,6 +17,7 @@ from .backend import MAX_MEMORY_TRANSFER, MemoryRegion
 
 MAX_PLAYERS = 8
 PLAYER_STRIDE = 0x1080
+CONTROLLER_SIZE = 0x30
 
 
 class MemoryBackend(Protocol):
@@ -43,9 +44,11 @@ class PlayerArrayResolution:
 class PlayerTelemetry:
     """One read-only Player record with community-derived field names."""
 
+    input_address: int
     character: int
     extreme_gear: int
     ai_control: bool
+    player_type: bool
     x: float
     y: float
     z: float
@@ -60,6 +63,28 @@ class PlayerTelemetry:
     level: int
     state: int
     previous_state: int
+
+
+@dataclass(frozen=True)
+class ControllerTelemetry:
+    """One raw player input record reached through ``Player.input``.
+
+    The fields and offsets are community-derived. In particular, callers must
+    not collapse ``ai_control`` and ``player_type`` into a human/CPU semantic
+    label until a normal-flow controllable-race fixture validates that meaning.
+    """
+
+    address: int
+    time_since_last_input: int
+    held_buttons: int
+    pressed_buttons: int
+    left_stick_x: int
+    left_stick_y: int
+    right_stick_x: int
+    right_stick_y: int
+    port: int
+    initialization_status: int
+    connected: bool
 
 
 class TelemetryResolutionError(RuntimeError):
@@ -172,6 +197,30 @@ def read_players(backend: MemoryBackend, resolution: PlayerArrayResolution) -> t
     return tuple(_decode_player(raw, index * resolution.stride) for index in range(resolution.player_count))
 
 
+def read_player_controllers(
+    backend: MemoryBackend, players: tuple[PlayerTelemetry, ...]
+) -> tuple[ControllerTelemetry | None, ...]:
+    """Decode the in-MEM1 controller referenced by each player record.
+
+    A null pointer represents a slot without an attached controller record.
+    Any non-null pointer outside MEM1 fails closed rather than following an
+    arbitrary guest address.
+    """
+
+    controllers: list[ControllerTelemetry | None] = []
+    for player in players:
+        if player.input_address == 0:
+            controllers.append(None)
+            continue
+        if not _contains(backend.memory, player.input_address, CONTROLLER_SIZE):
+            raise TelemetryResolutionError(
+                f"player {player.index} controller pointer 0x{player.input_address:08x} is outside MEM1"
+            )
+        raw = backend.read_memory(player.input_address, CONTROLLER_SIZE)
+        controllers.append(_decode_controller(player.input_address, raw))
+    return tuple(controllers)
+
+
 def validate_menu_player_order(players: tuple[PlayerTelemetry, ...]) -> None:
     """Check the deterministic fresh-boot GXEE8P menu initialization invariant.
 
@@ -198,9 +247,11 @@ def _contains(memory: MemoryRegion, guest_address: int, length: int) -> bool:
 
 def _decode_player(raw: bytes, offset: int) -> PlayerTelemetry:
     return PlayerTelemetry(
+        input_address=struct.unpack_from(">I", raw, offset)[0],
         character=raw[offset + 0x0BA],
         extreme_gear=raw[offset + 0x0BB],
         ai_control=bool(raw[offset + 0x0BC]),
+        player_type=bool(raw[offset + 0x0BD]),
         x=struct.unpack_from(">f", raw, offset + 0x1E4)[0],
         y=struct.unpack_from(">f", raw, offset + 0x1E8)[0],
         z=struct.unpack_from(">f", raw, offset + 0x1EC)[0],
@@ -215,4 +266,20 @@ def _decode_player(raw: bytes, offset: int) -> PlayerTelemetry:
         level=raw[offset + 0x102E],
         state=raw[offset + 0x1034],
         previous_state=raw[offset + 0x1035],
+    )
+
+
+def _decode_controller(address: int, raw: bytes) -> ControllerTelemetry:
+    return ControllerTelemetry(
+        address=address,
+        time_since_last_input=struct.unpack_from(">I", raw, 0x00)[0],
+        held_buttons=struct.unpack_from(">I", raw, 0x08)[0],
+        pressed_buttons=struct.unpack_from(">I", raw, 0x0C)[0],
+        left_stick_x=struct.unpack_from(">b", raw, 0x18)[0],
+        left_stick_y=struct.unpack_from(">b", raw, 0x19)[0],
+        right_stick_x=struct.unpack_from(">b", raw, 0x1C)[0],
+        right_stick_y=struct.unpack_from(">b", raw, 0x1D)[0],
+        port=raw[0x1E],
+        initialization_status=struct.unpack_from(">I", raw, 0x24)[0],
+        connected=bool(raw[0x28]),
     )

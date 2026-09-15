@@ -14,7 +14,7 @@ code.
    PPM frame below the worker's ignored `.local/` directory;
 3. resolves the relocated vanilla `players[]` reference again in live race
    code;
-4. validates all eight records have slot indices 0–7, finite high-priority
+4. validates all eight records have slot indices 0–7, `ai_control` set, finite high-priority
    numeric fields, a placement permutation 0–7, and independent motion over
    120 more frames;
 5. snapshots the live race, replays the same 330-frame non-neutral P1 trace
@@ -22,8 +22,9 @@ code.
 6. writes the evidence to `.local/reports/milestone5.json`.
 
 The trace makes the core consume native P1 digital/stick/trigger values while
-the race is running. The fixture is the stock attract demo, whose eight racers
-are AI-controlled, so it is not evidence that those inputs steer racer 0.
+the race is running. The fixture is the stock attract demo, whose eight
+`ai_control` flags are set, so it is not evidence that those inputs steer racer
+0 or a complete human/CPU classification.
 
 Fresh boots reliably reach the demo race but are not asserted to be bitwise
 identical before its snapshot. The probe's determinism assertion begins after

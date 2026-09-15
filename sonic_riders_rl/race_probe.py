@@ -51,7 +51,7 @@ def _validate_active_demo_roster(players: tuple[PlayerTelemetry, ...]) -> None:
     if tuple(player.index for player in players) != tuple(range(ROSTER_SIZE)):
         raise AssertionError("player index fields do not enumerate the eight slots")
     if not all(player.ai_control for player in players):
-        raise AssertionError("the stock attract demo unexpectedly contains a non-AI racer")
+        raise AssertionError("the stock attract demo does not have every ai_control flag set")
     if sorted(player.placement for player in players) != list(range(ROSTER_SIZE)):
         raise AssertionError("race placements are not a permutation of 0 through 7")
     for player in players:
@@ -147,7 +147,7 @@ def main() -> None:
             "fixture": {
                 "kind": "stock attract-mode race",
                 "boot_frames": boot.frames,
-                "all_racers_ai_controlled": True,
+                "all_ai_control_flags_set": True,
                 "debug_capture": str(capture),
                 "capture_size": [health["video_width"], health["video_height"]],
             },

@@ -109,7 +109,8 @@ python3 -m sonic_riders_rl.race_probe
 ```
 
 This reaches Sonic Riders' unmodified attract-mode race with explicit frame
-stepping, validates eight moving AI racer records, and proves a race snapshot
+stepping, validates eight moving racer records with their `ai_control` flags
+set, and proves a race snapshot
 replays exactly. It writes a diagnostic 640x528 PPM frame and its report below
 the repository's ignored `.local/` directory. It is not yet a human-controlled
 P1 race fixture.
@@ -123,7 +124,21 @@ python3 -m sonic_riders_rl.game_input_probe
 
 This uses one live-race snapshot to show a one-frame native P1 Start input
 takes a different, captured game branch than a neutral trace, while replaying
-exactly from the same state. The attract-mode racers are still AI-controlled.
+exactly from the same state. The attract-mode `ai_control` flags remain set;
+direct P1 steering is not claimed.
+
+## Milestone 7 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m unittest discover -s tests -v
+python3 -m sonic_riders_rl.control_telemetry_probe
+```
+
+This validates that P1 Start and stick input are present in Player 0's bounded,
+in-MEM1 controller record. It keeps the two raw ownership-related bytes,
+`ai_control` and `player_type`, distinct rather than prematurely assigning
+human/CPU semantics.
 
 ## Documentation
 
@@ -144,6 +159,8 @@ exactly from the same state. The attract-mode racers are still AI-controlled.
 - [Milestone 5 operation and validation](docs/milestone-5.md)
 - [Milestone 6 architecture decision](docs/milestone-6-architecture.md)
 - [Milestone 6 operation and validation](docs/milestone-6.md)
+- [Milestone 7 architecture decision](docs/milestone-7-architecture.md)
+- [Milestone 7 operation and validation](docs/milestone-7.md)
 
 ## External references
 

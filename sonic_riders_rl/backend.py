@@ -261,6 +261,18 @@ class LibretroDolphinBackend:
         fields = self._command(f"CHECKSUM 0x{guest_address:x} {length}", "OK CHECKSUM")
         return int(fields["checksum"], 0)
 
+    def capture_frame(self, filename: str = "frame.ppm") -> Path:
+        """Write one debug PPM capture below this worker's save directory."""
+
+        relative = Path(filename)
+        if relative.name != filename or relative.suffix != ".ppm":
+            raise ValueError("capture filename must be a simple .ppm filename")
+        self._command(f"CAPTURE {filename}", "OK CAPTURE")
+        capture_path = self.config.save_dir / relative
+        if not capture_path.is_file():
+            raise BackendError(f"runner did not create capture {capture_path}")
+        return capture_path
+
     def snapshot(self) -> Snapshot:
         fields = self._command("SNAPSHOT", "OK SNAPSHOT")
         return Snapshot(
@@ -279,6 +291,9 @@ class LibretroDolphinBackend:
             "map_size": int(fields["map_size"]),
             "big_endian": bool(int(fields["map_flags"], 0) & 0x2),
             "game_id_GXEE8P": fields["game_id_GXEE8P"] == "1",
+            "video_frames": int(fields["video_frames"]),
+            "video_width": int(fields["video_width"]),
+            "video_height": int(fields["video_height"]),
         }
 
     def close(self) -> None:

@@ -1,8 +1,11 @@
 import unittest
+from pathlib import Path
 
 from sonic_riders_rl.backend import (
+    BackendConfig,
     ControllerState,
     GameCubeButton,
+    LibretroDolphinBackend,
     MEM1_GUEST_BASE,
     MEM1_SIZE,
     StepResult,
@@ -33,6 +36,24 @@ class ControllerStateTests(unittest.TestCase):
         )
         self.assertEqual(result.player_1_input_queries, 1)
         self.assertEqual(result.player_1_nonzero_input_queries, 5)
+
+
+class CaptureValidationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.backend = LibretroDolphinBackend(
+            BackendConfig(
+                runner_path=Path("runner"),
+                core_path=Path("core"),
+                rom_path=Path("rom"),
+                system_dir=Path("system"),
+                save_dir=Path("saves"),
+            )
+        )
+
+    def test_capture_rejects_nonlocal_or_non_ppm_filenames_before_launch(self) -> None:
+        for filename in ("frame.png", "nested/frame.ppm", "../outside.ppm"):
+            with self.subTest(filename=filename), self.assertRaises(ValueError):
+                self.backend.capture_frame(filename)
 
 
 if __name__ == "__main__":

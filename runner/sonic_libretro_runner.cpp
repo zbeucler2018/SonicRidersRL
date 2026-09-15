@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <dlfcn.h>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -50,6 +51,10 @@ constexpr EGLint EGL_CONTEXT_MAJOR_VERSION_KHR_VALUE = 0x3098;
 constexpr EGLint EGL_CONTEXT_MINOR_VERSION_KHR_VALUE = 0x30FB;
 constexpr EGLint EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR_VALUE = 0x30FD;
 constexpr EGLint EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR_VALUE = 0x00000001;
+constexpr unsigned GL_RGBA_VALUE = 0x1908;
+constexpr unsigned GL_UNSIGNED_BYTE_VALUE = 0x1401;
+constexpr unsigned CAPTURE_WIDTH = 640;
+constexpr unsigned CAPTURE_HEIGHT = 528;
 
 std::string DynamicLoaderError()
 {
@@ -101,7 +106,8 @@ public:
       throw std::runtime_error("EGL could not select an OpenGL pbuffer configuration");
 
     const EGLint surface_attributes[] = {
-        EGL_PBUFFER_WIDTH_VALUE, 16, EGL_PBUFFER_HEIGHT_VALUE, 16, EGL_NONE_VALUE};
+        EGL_PBUFFER_WIDTH_VALUE, static_cast<EGLint>(CAPTURE_WIDTH),
+        EGL_PBUFFER_HEIGHT_VALUE, static_cast<EGLint>(CAPTURE_HEIGHT), EGL_NONE_VALUE};
     m_surface = m_create_pbuffer_surface(m_display, m_config, surface_attributes);
     if (!m_surface)
       throw std::runtime_error("EGL could not create a pbuffer surface");
@@ -116,6 +122,9 @@ public:
       throw std::runtime_error("EGL could not create an OpenGL context");
     if (m_make_current(m_display, m_surface, m_surface, m_context) == EGL_FALSE_VALUE)
       throw std::runtime_error("EGL could not make its OpenGL context current");
+    m_read_pixels = reinterpret_cast<ReadPixels>(GetProcAddress("glReadPixels"));
+    if (!m_read_pixels)
+      throw std::runtime_error("OpenGL glReadPixels is unavailable");
   }
 
   void Close()
@@ -156,6 +165,26 @@ public:
     return m_egl ? dlsym(m_egl, name) : nullptr;
   }
 
+  std::vector<uint8_t> CaptureRgb(unsigned width, unsigned height) const
+  {
+    if (!m_read_pixels || !width || !height || width > CAPTURE_WIDTH || height > CAPTURE_HEIGHT)
+      throw std::runtime_error("the current video dimensions cannot be captured from the debug pbuffer");
+    std::vector<uint8_t> rgba(static_cast<size_t>(width) * height * 4);
+    m_read_pixels(0, 0, static_cast<int>(width), static_cast<int>(height), GL_RGBA_VALUE,
+                  GL_UNSIGNED_BYTE_VALUE, rgba.data());
+    std::vector<uint8_t> rgb(static_cast<size_t>(width) * height * 3);
+    for (unsigned y = 0; y < height; ++y)
+    {
+      const size_t source_row = static_cast<size_t>(height - 1 - y) * width * 4;
+      const size_t destination_row = static_cast<size_t>(y) * width * 3;
+      for (unsigned x = 0; x < width; ++x)
+      {
+        std::memcpy(rgb.data() + destination_row + x * 3, rgba.data() + source_row + x * 4, 3);
+      }
+    }
+    return rgb;
+  }
+
 private:
   using GetDisplay = EGLDisplay (*)(void*);
   using GetPlatformDisplay = EGLDisplay (*)(EGLenum, void*, const EGLint*);
@@ -169,6 +198,7 @@ private:
   using DestroyContext = EGLBoolean (*)(EGLDisplay, EGLContext);
   using Terminate = EGLBoolean (*)(EGLDisplay);
   using GetProcAddressFn = void* (*)(const char*);
+  using ReadPixels = void (*)(int, int, int, int, unsigned, unsigned, void*);
 
   template <typename T>
   T Load(const char* name)
@@ -212,6 +242,7 @@ private:
   DestroyContext m_destroy_context = nullptr;
   Terminate m_terminate = nullptr;
   GetProcAddressFn m_get_proc = nullptr;
+  ReadPixels m_read_pixels = nullptr;
 };
 
 struct ControllerState {
@@ -434,7 +465,11 @@ public:
   {
     return g_session && g_session->HandleEnvironment(command, data);
   }
-  static void VideoRefresh(const void*, unsigned, unsigned, size_t) {}
+  static void VideoRefresh(const void*, unsigned width, unsigned height, size_t)
+  {
+    if (g_session)
+      g_session->RecordVideoFrame(width, height);
+  }
   static void AudioSample(int16_t, int16_t) {}
   static size_t AudioSampleBatch(const int16_t*, size_t frames) { return frames; }
   static void InputPoll()
@@ -598,6 +633,42 @@ private:
     return result;
   }
 
+  void RecordVideoFrame(unsigned width, unsigned height)
+  {
+    if (!width || !height)
+      return;
+    m_video_frames.fetch_add(1);
+    m_video_width.store(width);
+    m_video_height.store(height);
+  }
+
+public:
+  uint64_t video_frames() const { return m_video_frames.load(); }
+  unsigned video_width() const { return m_video_width.load(); }
+  unsigned video_height() const { return m_video_height.load(); }
+
+  void CaptureFrame(const std::string& filename) const
+  {
+    const std::filesystem::path relative_name(filename);
+    if (relative_name.empty() || relative_name != relative_name.filename() ||
+        relative_name.extension() != ".ppm")
+    {
+      throw std::runtime_error("CAPTURE requires a simple .ppm filename");
+    }
+    const unsigned width = video_width();
+    const unsigned height = video_height();
+    const auto rgb = m_egl.CaptureRgb(width, height);
+    const std::filesystem::path output_path = std::filesystem::path(m_options.save_dir) / relative_name;
+    std::ofstream output(output_path, std::ios::binary);
+    if (!output)
+      throw std::runtime_error("cannot open capture output " + output_path.string());
+    output << "P6\n" << width << " " << height << "\n255\n";
+    output.write(reinterpret_cast<const char*>(rgb.data()), static_cast<std::streamsize>(rgb.size()));
+    if (!output)
+      throw std::runtime_error("cannot write capture output " + output_path.string());
+  }
+
+private:
   Options m_options;
   EglContext m_egl;
   CoreApi m_core;
@@ -609,6 +680,9 @@ private:
   std::array<std::atomic<uint64_t>, 4> m_queries{};
   std::array<std::atomic<uint64_t>, 4> m_nonzero_queries{};
   std::atomic<uint64_t> m_polls{0};
+  std::atomic<uint64_t> m_video_frames{0};
+  std::atomic<unsigned> m_video_width{0};
+  std::atomic<unsigned> m_video_height{0};
   uint64_t m_frames = 0;
   std::unordered_map<std::string, std::string> m_variables{
       {"dolphin_renderer", "Hardware"},
@@ -769,6 +843,13 @@ void RunServer(CoreSession& session)
         std::cout << "OK CHECKSUM bytes=" << bytes.size() << " checksum=0x" << std::hex
                   << Fnv1a64(bytes) << std::dec << "\n";
       }
+      else if (command == "CAPTURE")
+      {
+        std::string filename;
+        input >> filename;
+        session.CaptureFrame(filename);
+        std::cout << "OK CAPTURE filename=" << filename << "\n";
+      }
       else if (command == "SNAPSHOT")
       {
         auto snapshot = session.Snapshot();
@@ -796,7 +877,10 @@ void RunServer(CoreSession& session)
                   << " map_base=0x" << std::hex << current_memory.guest_start << std::dec
                   << " map_size=" << current_memory.size << " map_flags=0x" << std::hex
                   << current_memory.flags << std::dec << " game_id_GXEE8P="
-                  << (session.SawGameId("GXEE8P") ? 1 : 0) << "\n";
+                  << (session.SawGameId("GXEE8P") ? 1 : 0)
+                  << " video_frames=" << session.video_frames()
+                  << " video_width=" << session.video_width()
+                  << " video_height=" << session.video_height() << "\n";
       }
       else if (command == "QUIT")
       {

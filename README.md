@@ -37,7 +37,7 @@ proves that we can:
 3. call `retro_run()` under frontend control;
 4. inject GameCube controller state;
 5. access MEM1 directly;
-6. serialize/unserialize deterministic race states.
+6. serialize/unserialize deterministic menu states.
 
 Milestone 2 adds a read-only, versioned telemetry reconnaissance layer. It
 resolves the relocatable vanilla `players[]` array from code at runtime, decodes
@@ -100,6 +100,20 @@ This runs 10,000 snapshot/reset one-frame rollouts in one worker, periodically
 checks its health, and confirms the final restore exactly reproduces the
 baseline MEM1 checksum. Its report is `.local/reports/milestone4.json`.
 
+## Milestone 5 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m unittest discover -s tests -v
+python3 -m sonic_riders_rl.race_probe
+```
+
+This reaches Sonic Riders' unmodified attract-mode race with explicit frame
+stepping, validates eight moving AI racer records, and proves a race snapshot
+replays exactly. It writes a diagnostic 640x528 PPM frame and its report below
+the repository's ignored `.local/` directory. It is not yet a human-controlled
+P1 race fixture.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -115,6 +129,8 @@ baseline MEM1 checksum. Its report is `.local/reports/milestone4.json`.
 - [Milestone 3 architecture decision](docs/milestone-3-architecture.md)
 - [Milestone 3 operation and validation](docs/milestone-3.md)
 - [Milestone 4 operation and validation](docs/milestone-4.md)
+- [Milestone 5 architecture decision](docs/milestone-5-architecture.md)
+- [Milestone 5 operation and validation](docs/milestone-5.md)
 
 ## External references
 

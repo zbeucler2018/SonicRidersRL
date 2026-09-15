@@ -89,6 +89,17 @@ This probe restores a single controlled snapshot and replays the same
 four-controller trace twice. It requires matching full-MEM1 and `players[]`
 checksums, then records the result in `.local/reports/milestone3.json`.
 
+## Milestone 4 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.reset_stress_probe
+```
+
+This runs 10,000 snapshot/reset one-frame rollouts in one worker, periodically
+checks its health, and confirms the final restore exactly reproduces the
+baseline MEM1 checksum. Its report is `.local/reports/milestone4.json`.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -103,6 +114,7 @@ checksums, then records the result in `.local/reports/milestone3.json`.
 - [Milestone 2 operation and validation](docs/milestone-2.md)
 - [Milestone 3 architecture decision](docs/milestone-3-architecture.md)
 - [Milestone 3 operation and validation](docs/milestone-3.md)
+- [Milestone 4 operation and validation](docs/milestone-4.md)
 
 ## External references
 

@@ -157,6 +157,13 @@ The current release Dolphin-libretro core crashes before startup when asked to
 use its Null renderer. Hardware remains the only exposed and validated renderer
 for this host/core; see the recorded [compatibility result](docs/milestone-9.md).
 
+## Milestone 10 result
+
+The stock attract transition validates controller-to-player pointer mapping,
+but not direct steering: Player 0/1 can retain `player_type=0` while
+`ai_control=1`. The next prerequisite is a normal menu-driven race setup, not
+an RL environment.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -182,6 +189,8 @@ for this host/core; see the recorded [compatibility result](docs/milestone-9.md)
 - [Milestone 8 operation and validation](docs/milestone-8.md)
 - [Milestone 9 architecture decision](docs/milestone-9-architecture.md)
 - [Milestone 9 compatibility result](docs/milestone-9.md)
+- [Milestone 10 architecture decision](docs/milestone-10-architecture.md)
+- [Milestone 10 investigation result](docs/milestone-10.md)
 
 ## External references
 

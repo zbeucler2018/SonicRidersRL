@@ -10,6 +10,7 @@ Current community reverse engineering describes a `Player` structure with a stri
 | `0x0BA` | character | Character ID |
 | `0x0BB` | extremeGear | Gear ID |
 | `0x0BC` | aiControl | CPU/player control indicator |
+| `0x0BD` | playerType | Separate ownership-related flag; do not collapse with `aiControl` |
 | `0x1E4` | x | `f32` |
 | `0x1E8` | y | `f32` |
 | `0x1EC` | z | `f32` |
@@ -65,6 +66,17 @@ AttackedByPlayer
 Stun
 Run
 ```
+
+## Controller-pointer validation
+
+Milestone 7 validated that Player 0's live `input` pointer is an in-MEM1
+0x30-byte controller record for GameCube port 0. Injected P1 Start appears in
+the record as held/edge bit `0x100`; full-right stick appears as
+`leftStickHorizontal=100` and held bit `0x8000`.
+
+Milestone 10 observed that `aiControl` and `playerType` can disagree in the
+stock attract flow. Treat both as raw telemetry until a normal controllable
+race validates their policy semantics.
 
 ## Movement / status flags
 

@@ -92,8 +92,20 @@ class StepResult:
     frames: int
     total_frames: int
     input_polls: int
-    player_1_input_queries: int
-    player_1_nonzero_input_queries: int
+    input_queries_by_port: tuple[int, int, int, int]
+    nonzero_input_queries_by_port: tuple[int, int, int, int]
+
+    @property
+    def player_1_input_queries(self) -> int:
+        """Number of input-state callback reads for GameCube port 0 (P1)."""
+
+        return self.input_queries_by_port[0]
+
+    @property
+    def player_1_nonzero_input_queries(self) -> int:
+        """Number of non-neutral input values returned for GameCube port 0 (P1)."""
+
+        return self.nonzero_input_queries_by_port[0]
 
 
 @dataclass(frozen=True)
@@ -215,8 +227,10 @@ class LibretroDolphinBackend:
             frames=int(fields["frames"]),
             total_frames=int(fields["total_frames"]),
             input_polls=int(fields["polls"]),
-            player_1_input_queries=int(fields["p0_queries"]),
-            player_1_nonzero_input_queries=int(fields["p0_nonzero"]),
+            input_queries_by_port=tuple(int(fields[f"p{port}_queries"]) for port in range(4)),
+            nonzero_input_queries_by_port=tuple(
+                int(fields[f"p{port}_nonzero"]) for port in range(4)
+            ),
         )
 
     def read_memory(self, guest_address: int, length: int) -> bytes:

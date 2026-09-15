@@ -39,7 +39,15 @@ proves that we can:
 5. access MEM1 directly;
 6. serialize/unserialize deterministic race states.
 
-Only after these gates pass do we move on to Gymnasium/PettingZoo and serious RL training.
+Milestone 2 adds a read-only, versioned telemetry reconnaissance layer. It
+resolves the relocatable vanilla `players[]` array from code at runtime, decodes
+the documented big-endian player structure, validates the fresh-menu eight-slot
+stride invariant, and independently accounts for all four controller ports.
+Gameplay fields remain explicitly unvalidated until they are tested in a real
+race.
+
+Only after the telemetry/determinism gates pass do we move on to
+Gymnasium/PettingZoo and serious RL training.
 
 ## Milestone 1 quick start
 
@@ -57,6 +65,19 @@ The probe expects the authorized ROM at
 requires Dolphin to identify it as `GXEE8P`, tests P1 input, MEM1, an
 in-memory savestate restore, and a 10,000-frame synchronous stepping loop.
 
+## Milestone 2 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m unittest discover -s tests -v
+python3 -m sonic_riders_rl.milestone2_probe
+```
+
+This read-only telemetry probe resolves the live `players[]` allocation from a
+vanilla `_Main.rel` instruction signature. It also checks a savestate-protected
+MEM1 write/restore and four distinct controller ports. The report is stored at
+`.local/reports/milestone2.json`.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -67,6 +88,8 @@ in-memory savestate restore, and a 10,000-frame synchronous stepping loop.
 - [Emulator control options](docs/research/emulator-control-options.md)
 - [Milestone 1 architecture decision](docs/milestone-1-architecture.md)
 - [Milestone 1 operation and validation](docs/milestone-1.md)
+- [Milestone 2 architecture decision](docs/milestone-2-architecture.md)
+- [Milestone 2 operation and validation](docs/milestone-2.md)
 
 ## External references
 

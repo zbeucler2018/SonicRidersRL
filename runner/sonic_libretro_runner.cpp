@@ -585,6 +585,13 @@ private:
         result = id == RETRO_DEVICE_ID_ANALOG_X ? controller.left_x : controller.left_y;
       else if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
         result = id == RETRO_DEVICE_ID_ANALOG_X ? controller.right_x : controller.right_y;
+      else if (index == RETRO_DEVICE_INDEX_ANALOG_BUTTON)
+      {
+        if (id == RETRO_DEVICE_ID_JOYPAD_L2)
+          result = controller.left_trigger;
+        else if (id == RETRO_DEVICE_ID_JOYPAD_R2)
+          result = controller.right_trigger;
+      }
     }
     if (result)
       m_nonzero_queries[port].fetch_add(1);
@@ -721,14 +728,24 @@ void RunServer(CoreSession& session)
                         static_cast<int16_t>(right_trigger)};
         }
         const uint64_t polls_before = session.polls();
-        const uint64_t queries_before = session.queries(0);
-        const uint64_t active_before = session.nonzero_queries(0);
+        std::array<uint64_t, 4> queries_before{};
+        std::array<uint64_t, 4> active_before{};
+        for (unsigned port = 0; port < queries_before.size(); ++port)
+        {
+          queries_before[port] = session.queries(port);
+          active_before[port] = session.nonzero_queries(port);
+        }
         session.SetControllers(controllers);
         session.RunFrames(frames);
         std::cout << "OK STEPPED frames=" << frames << " total_frames=" << session.frames()
-                  << " polls=" << session.polls() - polls_before
-                  << " p0_queries=" << session.queries(0) - queries_before
-                  << " p0_nonzero=" << session.nonzero_queries(0) - active_before << "\n";
+                  << " polls=" << session.polls() - polls_before;
+        for (unsigned port = 0; port < queries_before.size(); ++port)
+        {
+          std::cout << " p" << port << "_queries=" << session.queries(port) - queries_before[port]
+                    << " p" << port << "_nonzero="
+                    << session.nonzero_queries(port) - active_before[port];
+        }
+        std::cout << "\n";
       }
       else if (command == "READ")
       {

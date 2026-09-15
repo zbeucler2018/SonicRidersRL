@@ -1,6 +1,12 @@
 import unittest
 
-from sonic_riders_rl.backend import ControllerState, GameCubeButton, MEM1_GUEST_BASE, MEM1_SIZE
+from sonic_riders_rl.backend import (
+    ControllerState,
+    GameCubeButton,
+    MEM1_GUEST_BASE,
+    MEM1_SIZE,
+    StepResult,
+)
 
 
 class ControllerStateTests(unittest.TestCase):
@@ -16,6 +22,17 @@ class ControllerStateTests(unittest.TestCase):
     def test_mem1_constants_match_gamecube_mapping(self) -> None:
         self.assertEqual(MEM1_GUEST_BASE, 0x80000000)
         self.assertEqual(MEM1_SIZE, 0x01800000)
+
+    def test_step_result_preserves_per_port_input_accounting(self) -> None:
+        result = StepResult(
+            frames=1,
+            total_frames=1,
+            input_polls=1,
+            input_queries_by_port=(1, 2, 3, 4),
+            nonzero_input_queries_by_port=(5, 6, 7, 8),
+        )
+        self.assertEqual(result.player_1_input_queries, 1)
+        self.assertEqual(result.player_1_nonzero_input_queries, 5)
 
 
 if __name__ == "__main__":

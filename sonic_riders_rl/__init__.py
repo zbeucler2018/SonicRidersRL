@@ -1,4 +1,4 @@
-"""The Milestone 1 emulator-control substrate for Sonic Riders."""
+"""Sonic Riders emulator-control and read-only telemetry primitives."""
 
 from .backend import (
     BackendConfig,
@@ -9,13 +9,27 @@ from .backend import (
     Snapshot,
     StepResult,
 )
+from .telemetry import (
+    BigEndianMemory,
+    PlayerArrayResolution,
+    PlayerTelemetry,
+    TelemetryResolutionError,
+    read_players,
+    resolve_players_array,
+)
 
 __all__ = [
     "BackendConfig",
+    "BigEndianMemory",
     "ControllerState",
     "GameCubeButton",
     "LibretroDolphinBackend",
     "MemoryRegion",
+    "PlayerArrayResolution",
+    "PlayerTelemetry",
     "Snapshot",
     "StepResult",
+    "TelemetryResolutionError",
+    "read_players",
+    "resolve_players_array",
 ]

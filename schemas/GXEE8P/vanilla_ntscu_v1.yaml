@@ -1,0 +1,36 @@
+schema_version: 1
+game_id: GXEE8P
+title: Sonic Riders (GameCube, USA)
+variant: vanilla_ntscu
+endianness: big
+memory:
+  region: MEM1
+  guest_base: 0x80000000
+  size: 0x01800000
+player_array:
+  player_count: 8
+  stride: 0x1080
+  base:
+    resolver: gxee8p_main_rel_players_reference_v1
+    status: vanilla-validated-at-menu
+    note: _Main.rel is relocatable; never use a fixed guest address.
+  validation:
+    fresh_menu_character_ids: [0, 1, 2, 3, 4, 5, 6, 7]
+fields:
+  - {name: character, offset: 0x0BA, type: u8, provenance: community-derived, status: vanilla-validated-at-menu}
+  - {name: extreme_gear, offset: 0x0BB, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: ai_control, offset: 0x0BC, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: x, offset: 0x1E4, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: y, offset: 0x1E8, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: z, offset: 0x1EC, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: current_air, offset: 0x984, type: s32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: vertical_speed, offset: 0xAA4, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: speed, offset: 0xAAC, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: rings, offset: 0xB98, type: u32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: stage_progress, offset: 0xBC4, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: index, offset: 0x1029, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: current_lap, offset: 0x102A, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: placement, offset: 0x102D, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: level, offset: 0x102E, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: state, offset: 0x1034, type: u8, provenance: community-derived, status: unvalidated-in-race}
+  - {name: previous_state, offset: 0x1035, type: u8, provenance: community-derived, status: unvalidated-in-race}

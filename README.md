@@ -151,6 +151,12 @@ This empirically defines one active-race backend frame as one caller-issued
 `retro_run()`: runner, video, and game-side controller clocks all advance by
 the requested amount in the stock race fixture.
 
+## Milestone 9 result
+
+The current release Dolphin-libretro core crashes before startup when asked to
+use its Null renderer. Hardware remains the only exposed and validated renderer
+for this host/core; see the recorded [compatibility result](docs/milestone-9.md).
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -174,6 +180,8 @@ the requested amount in the stock race fixture.
 - [Milestone 7 operation and validation](docs/milestone-7.md)
 - [Milestone 8 architecture decision](docs/milestone-8-architecture.md)
 - [Milestone 8 operation and validation](docs/milestone-8.md)
+- [Milestone 9 architecture decision](docs/milestone-9-architecture.md)
+- [Milestone 9 compatibility result](docs/milestone-9.md)
 
 ## External references
 

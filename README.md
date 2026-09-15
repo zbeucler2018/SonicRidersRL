@@ -7,7 +7,7 @@ The project is infrastructure-first: before serious RL training, the goal is to 
 ## Current architecture
 
 ```text
-Dolphin-libretro
+Dolphin-libretro worker process
       ↓
 raw memory / controller input / frames
       ↓
@@ -20,11 +20,17 @@ Gymnasium / PettingZoo
 training + self-play league
 ```
 
-The preferred training backend is a minimal custom libretro frontend that loads `dolphin_libretro.so` directly. Standalone Dolphin remains useful for reverse engineering and visual debugging. Stable-Retro is intentionally not on the critical path.
+The Milestone 1 backend is a small custom libretro host that loads
+`dolphin_libretro.so` directly on the Linux host. It creates a hidden
+surfaceless OpenGL context, runs exactly the requested number of `retro_run()`
+calls, and is wrapped by a deliberately small Python API. Standalone Dolphin
+remains useful for reverse engineering and visual debugging. Stable-Retro is
+intentionally not on the critical path.
 
 ## Current status
 
-The project is in the emulator/telemetry infrastructure phase. The next engineering spike is to prove that we can:
+The project is in the emulator/telemetry infrastructure phase. Milestone 1
+proves that we can:
 
 1. build and load current Dolphin-libretro on Ubuntu;
 2. boot the exact Sonic Riders NTSC-U image;
@@ -33,7 +39,23 @@ The project is in the emulator/telemetry infrastructure phase. The next engineer
 5. access MEM1 directly;
 6. serialize/unserialize deterministic race states.
 
-Only after those gates pass do we move on to Gymnasium/PettingZoo and serious RL training.
+Only after these gates pass do we move on to Gymnasium/PettingZoo and serious RL training.
+
+## Milestone 1 quick start
+
+All downloaded core files, Dolphin system assets, run data, and reports are
+kept in the repository's ignored `.local/` directory.
+
+```bash
+scripts/bootstrap_dolphin_core.sh
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.probe
+```
+
+The probe expects the authorized ROM at
+`~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz`. It boots the disc,
+requires Dolphin to identify it as `GXEE8P`, tests P1 input, MEM1, an
+in-memory savestate restore, and a 10,000-frame synchronous stepping loop.
 
 ## Documentation
 
@@ -43,6 +65,8 @@ Only after those gates pass do we move on to Gymnasium/PettingZoo and serious RL
 - [Reverse-engineering notes](docs/reverse-engineering.md)
 - [Player structure research](docs/research/player-structure.md)
 - [Emulator control options](docs/research/emulator-control-options.md)
+- [Milestone 1 architecture decision](docs/milestone-1-architecture.md)
+- [Milestone 1 operation and validation](docs/milestone-1.md)
 
 ## External references
 

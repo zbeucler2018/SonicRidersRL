@@ -1,0 +1,7 @@
+# Local upstream checkouts, build products, and per-run Dolphin data stay in this repository
+# but are not source-controlled.
+.local/
+build/
+__pycache__/
+*.py[cod]
+

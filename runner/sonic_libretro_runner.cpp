@@ -761,6 +761,14 @@ void RunServer(CoreSession& session)
         session.Write(ParseUnsigned(address), FromHex(bytes));
         std::cout << "OK WROTE bytes=" << bytes.size() / 2 << "\n";
       }
+      else if (command == "CHECKSUM")
+      {
+        std::string address, length;
+        input >> address >> length;
+        const auto bytes = session.Read(ParseUnsigned(address), static_cast<size_t>(ParseUnsigned(length)));
+        std::cout << "OK CHECKSUM bytes=" << bytes.size() << " checksum=0x" << std::hex
+                  << Fnv1a64(bytes) << std::dec << "\n";
+      }
       else if (command == "SNAPSHOT")
       {
         auto snapshot = session.Snapshot();

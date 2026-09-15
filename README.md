@@ -78,6 +78,17 @@ vanilla `_Main.rel` instruction signature. It also checks a savestate-protected
 MEM1 write/restore and four distinct controller ports. The report is stored at
 `.local/reports/milestone2.json`.
 
+## Milestone 3 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.determinism_probe
+```
+
+This probe restores a single controlled snapshot and replays the same
+four-controller trace twice. It requires matching full-MEM1 and `players[]`
+checksums, then records the result in `.local/reports/milestone3.json`.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -90,6 +101,8 @@ MEM1 write/restore and four distinct controller ports. The report is stored at
 - [Milestone 1 operation and validation](docs/milestone-1.md)
 - [Milestone 2 architecture decision](docs/milestone-2-architecture.md)
 - [Milestone 2 operation and validation](docs/milestone-2.md)
+- [Milestone 3 architecture decision](docs/milestone-3-architecture.md)
+- [Milestone 3 operation and validation](docs/milestone-3.md)
 
 ## External references
 

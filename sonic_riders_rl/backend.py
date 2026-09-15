@@ -248,6 +248,19 @@ class LibretroDolphinBackend:
             raise ValueError(f"write size exceeds {MAX_MEMORY_TRANSFER} bytes")
         self._command(f"WRITE 0x{guest_address:x} {data.hex()}", "OK WROTE")
 
+    def memory_checksum(self, guest_address: int, length: int) -> int:
+        """Return the runner's FNV-1a checksum for a bounded MEM1 range.
+
+        The bytes never cross the runner protocol, which makes this suitable
+        for determinism checks over all 24 MiB of MEM1.
+        """
+
+        if length <= 0:
+            raise ValueError("checksum length must be positive")
+        self._validate_memory_range(guest_address, length)
+        fields = self._command(f"CHECKSUM 0x{guest_address:x} {length}", "OK CHECKSUM")
+        return int(fields["checksum"], 0)
+
     def snapshot(self) -> Snapshot:
         fields = self._command("SNAPSHOT", "OK SNAPSHOT")
         return Snapshot(

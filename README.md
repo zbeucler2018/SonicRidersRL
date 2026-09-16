@@ -68,8 +68,10 @@ The normal-race probe expects the authorized ROM at
 `~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz`. It verifies the latest
 end-to-end fixture: booting `GXEE8P`, controlled frame stepping, P1 movement in
 a normal race, direct MEM1 access, snapshot replay, and the earlier 10,000-step
-stability gate. See [development setup](docs/development.md) for details and
-the individual milestone records for their exact historical commands/results.
+stability gate. The formal normal-race reset fixture additionally verifies 32
+exact in-memory restores. See [development setup](docs/development.md) for
+details and the individual milestone records for their exact historical
+commands/results.
 
 ## Documentation
 
@@ -103,6 +105,8 @@ the individual milestone records for their exact historical commands/results.
 - [Milestone 11 operation and validation](docs/milestone-11.md)
 - [Milestone 12 architecture decision](docs/milestone-12-architecture.md)
 - [Milestone 12 operation and validation](docs/milestone-12.md)
+- [Milestone 13 architecture decision](docs/milestone-13-architecture.md)
+- [Milestone 13 operation and validation](docs/milestone-13.md)
 
 ## External references
 

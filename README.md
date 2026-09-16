@@ -107,6 +107,8 @@ commands/results.
 - [Milestone 12 operation and validation](docs/milestone-12.md)
 - [Milestone 13 architecture decision](docs/milestone-13-architecture.md)
 - [Milestone 13 operation and validation](docs/milestone-13.md)
+- [Milestone 14 architecture decision](docs/milestone-14-architecture.md)
+- [Milestone 14 operation and validation](docs/milestone-14.md)
 
 ## External references
 

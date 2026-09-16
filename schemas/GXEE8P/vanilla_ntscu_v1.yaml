@@ -43,14 +43,14 @@ controller:
     - {name: port, offset: 0x1E, type: u8, provenance: community-derived, status: unvalidated-in-race}
     - {name: initialization_status, offset: 0x24, type: u32, provenance: community-derived, status: unvalidated-in-race}
     - {name: connected, offset: 0x28, type: u8, provenance: community-derived, status: unvalidated-in-race}
-  - {name: x, offset: 0x1E4, type: f32, provenance: community-derived, status: unvalidated-in-race}
-  - {name: y, offset: 0x1E8, type: f32, provenance: community-derived, status: unvalidated-in-race}
-  - {name: z, offset: 0x1EC, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: x, offset: 0x1E4, type: f32, provenance: community-derived, status: vanilla-validated-normal-p1-race}
+  - {name: y, offset: 0x1E8, type: f32, provenance: community-derived, status: vanilla-validated-normal-p1-race}
+  - {name: z, offset: 0x1EC, type: f32, provenance: community-derived, status: vanilla-validated-normal-p1-race}
   - {name: current_air, offset: 0x984, type: s32, provenance: community-derived, status: unvalidated-in-race}
   - {name: vertical_speed, offset: 0xAA4, type: f32, provenance: community-derived, status: unvalidated-in-race}
-  - {name: speed, offset: 0xAAC, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: speed, offset: 0xAAC, type: f32, provenance: community-derived, status: vanilla-validated-normal-p1-race}
   - {name: rings, offset: 0xB98, type: u32, provenance: community-derived, status: unvalidated-in-race}
-  - {name: stage_progress, offset: 0xBC4, type: f32, provenance: community-derived, status: unvalidated-in-race}
+  - {name: stage_progress, offset: 0xBC4, type: f32, provenance: community-derived, status: vanilla-validated-normal-route-start}
   - {name: index, offset: 0x1029, type: u8, provenance: community-derived, status: unvalidated-in-race}
   - {name: current_lap, offset: 0x102A, type: u8, provenance: community-derived, status: unvalidated-in-race}
   - {name: placement, offset: 0x102D, type: u8, provenance: community-derived, status: unvalidated-in-race}

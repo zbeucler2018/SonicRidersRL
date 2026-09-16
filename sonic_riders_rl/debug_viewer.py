@@ -28,7 +28,7 @@ const held=new Set(), c=document.querySelector('#g'),x=c.getContext('2d'),t=docu
 function send(){let pads=navigator.getGamepads?navigator.getGamepads():[],g=pads&&pads[0];fetch('/keys',{method:'POST',body:JSON.stringify({keys:[...held],gamepad:g?{axes:[g.axes[0]||0,g.axes[1]||0],buttons:g.buttons.map(b=>b.pressed)}:null})})}
 addEventListener('keydown',e=>{if(e.key==='r'){fetch('/reset',{method:'POST'});return}if(['w','a','s','d','z','x','q','e','Enter'].includes(e.key)){held.add(e.key);send();e.preventDefault()}});
 addEventListener('keyup',e=>{if(held.delete(e.key)){send();e.preventDefault()}});addEventListener('blur',()=>{held.clear();send()});
-async function frame(){let b=await (await fetch('/frame')).arrayBuffer(),u=new Uint8Array(b),p=0,n=0;while(n<3){if(u[p]===35){while(u[p++]!==10);}else if(u[p++]===10)n++}let q=p;while(u[q]<=32)q++;let s=new ImageData(new Uint8ClampedArray(640*528*4),640,528);for(let i=0,j=q;i<640*528;i++,j+=3){s.data[i*4]=u[j];s.data[i*4+1]=u[j+1];s.data[i*4+2]=u[j+2];s.data[i*4+3]=255}x.putImageData(s,0,0)}
+async function frame(){let b=await (await fetch('/frame')).arrayBuffer(),u=new Uint8Array(b),p=0,n=0;while(n<3){if(u[p]===35){while(u[p++]!==10);}else if(u[p++]===10)n++}let s=new ImageData(new Uint8ClampedArray(640*528*4),640,528);for(let i=0,j=p;i<640*528;i++,j+=3){s.data[i*4]=u[j];s.data[i*4+1]=u[j+1];s.data[i*4+2]=u[j+2];s.data[i*4+3]=255}x.putImageData(s,0,0)}
 async function tick(){try{send();await frame();t.textContent=JSON.stringify(await (await fetch('/telemetry')).json(),null,2)}catch(_){ }setTimeout(tick,80)}send();tick();</script>'''
 
 

@@ -115,6 +115,7 @@ commands/results.
 - [Milestone 14 operation and validation](docs/milestone-14.md)
 - [Milestone 15 architecture decision](docs/milestone-15-architecture.md)
 - [Milestone 15 operation and validation](docs/milestone-15.md)
+- [Milestone 16 trace contract](docs/milestone-16.md)
 
 ## External references
 

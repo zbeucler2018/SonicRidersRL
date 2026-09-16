@@ -8,6 +8,9 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict
 import json
+import os
+import select
+import struct
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -34,6 +37,8 @@ class ViewerState:
         self.lock = threading.Lock()
         self.keys: set[str] = set()
         self.gamepad: dict[str, object] | None = None
+        self.host_axes: dict[int, int] = {}
+        self.host_buttons: set[int] = set()
         self.reset_requested = False
         self.frame = b"P6\n640 528\n255\n" + bytes(640 * 528 * 3)
         self.telemetry: dict[str, object] = {"status": "booting"}
@@ -41,19 +46,39 @@ class ViewerState:
     def controller(self) -> ControllerState:
         with self.lock:
             keys, gamepad = self.keys.copy(), self.gamepad
+            host_axes, host_buttons = self.host_axes.copy(), self.host_buttons.copy()
         axes = gamepad.get("axes", [0, 0]) if gamepad else [0, 0]
         buttons = gamepad.get("buttons", []) if gamepad else []
         def pressed(index: int) -> bool: return index < len(buttons) and bool(buttons[index])
         def axis(index: int) -> int: return int(max(-1, min(1, float(axes[index]))) * 32767) if index < len(axes) else 0
         return ControllerState(
-            buttons=(GameCubeButton.A.mask if "z" in keys or pressed(0) else 0)
-            | (GameCubeButton.B.mask if "x" in keys or pressed(1) else 0)
-            | (GameCubeButton.START.mask if "Enter" in keys or pressed(9) else 0),
-            left_x=axis(0) or 20_000 * (("d" in keys) - ("a" in keys)),
-            left_y=axis(1) or 20_000 * (("s" in keys) - ("w" in keys)),
-            left_trigger=32_767 if "q" in keys or pressed(6) else 0,
-            right_trigger=32_767 if "e" in keys or pressed(7) else 0,
+            buttons=(GameCubeButton.A.mask if "z" in keys or pressed(0) or 0 in host_buttons else 0)
+            | (GameCubeButton.B.mask if "x" in keys or pressed(1) or 1 in host_buttons else 0)
+            | (GameCubeButton.START.mask if "Enter" in keys or pressed(9) or 9 in host_buttons else 0),
+            left_x=host_axes.get(0, 0) or axis(0) or 20_000 * (("d" in keys) - ("a" in keys)),
+            left_y=host_axes.get(1, 0) or axis(1) or 20_000 * (("s" in keys) - ("w" in keys)),
+            left_trigger=32_767 if "q" in keys or pressed(6) or 6 in host_buttons else 0,
+            right_trigger=32_767 if "e" in keys or pressed(7) or 7 in host_buttons else 0,
         )
+
+
+class LinuxJoystick:
+    """Tiny dependency-free reader for Linux's stable /dev/input/jsN ABI."""
+    _EVENT = struct.Struct("IhBB")
+    def __init__(self, path: Path | None):
+        self.fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK) if path else None
+    def poll(self, state: ViewerState) -> None:
+        if self.fd is None: return
+        while select.select([self.fd], [], [], 0)[0]:
+            data = os.read(self.fd, self._EVENT.size)
+            if len(data) != self._EVENT.size: return
+            _, value, event_type, number = self._EVENT.unpack(data); event_type &= 0x7F
+            with state.lock:
+                if event_type == 1:
+                    (state.host_buttons.add if value else state.host_buttons.discard)(number)
+                elif event_type == 2: state.host_axes[number] = value
+    def close(self) -> None:
+        if self.fd is not None: os.close(self.fd)
 
 
 def _handler(state: ViewerState):
@@ -87,16 +112,18 @@ def _handler(state: ViewerState):
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    p = argparse.ArgumentParser(description=__doc__); p.add_argument("--port", type=int, default=8765); args = p.parse_args()
+    p = argparse.ArgumentParser(description=__doc__); p.add_argument("--port", type=int, default=8765); p.add_argument("--joystick", type=Path, default=Path("/dev/input/js1")); args = p.parse_args()
     state = ViewerState(); server = ThreadingHTTPServer(("127.0.0.1", args.port), _handler(state))
     config = BackendConfig(root / "build/sonic-libretro-runner", root / ".local/core/dolphin_libretro.so", Path("~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz"), root / ".local/runtime/system", root / ".local/runtime/saves/debug-viewer")
     with LibretroDolphinBackend(config) as backend:
         mode, players, _ = boot_normal_free_race(backend); snapshot = backend.snapshot()
+        joystick = LinuxJoystick(args.joystick if args.joystick.exists() else None)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         print(f"Open http://127.0.0.1:{args.port} (Ctrl-C to stop)", flush=True)
         try:
             while True:
                 started = monotonic()
+                joystick.poll(state)
                 with state.lock: reset = state.reset_requested; state.reset_requested = False
                 if reset: backend.restore(snapshot)
                 backend.step({0: state.controller()}, frames=4)
@@ -104,9 +131,9 @@ def main() -> None:
                 capture = backend.capture_frame("viewer.ppm").read_bytes()
                 with state.lock:
                     state.frame = capture
-                    state.telemetry = {"game_mode": asdict(game), "player_0": asdict(p0), "reset_available": True}
+                    state.telemetry = {"game_mode": asdict(game), "player_0": asdict(p0), "host_joystick": {"path": str(args.joystick), "axes": state.host_axes, "buttons": sorted(state.host_buttons)}, "reset_available": True}
                 sleep(max(0, 1 / 15 - (monotonic() - started)))
         except KeyboardInterrupt: pass
-        finally: server.shutdown()
+        finally: joystick.close(); server.shutdown()
 
 if __name__ == "__main__": main()

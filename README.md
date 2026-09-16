@@ -64,6 +64,10 @@ uv run python -m unittest discover -s tests -v
 uv run python -m sonic_riders_rl.normal_race_probe
 ```
 
+For manual route telemetry, run `uv run python -m sonic_riders_rl.debug_viewer`
+and open the printed localhost URL. The game is on the left; telemetry is in a
+separate panel on the right.
+
 The normal-race probe expects the authorized ROM at
 `~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz`. It verifies the latest
 end-to-end fixture: booting `GXEE8P`, controlled frame stepping, P1 movement in
@@ -109,6 +113,8 @@ commands/results.
 - [Milestone 13 operation and validation](docs/milestone-13.md)
 - [Milestone 14 architecture decision](docs/milestone-14-architecture.md)
 - [Milestone 14 operation and validation](docs/milestone-14.md)
+- [Milestone 15 architecture decision](docs/milestone-15-architecture.md)
+- [Milestone 15 operation and validation](docs/milestone-15.md)
 
 ## External references
 

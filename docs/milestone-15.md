@@ -1,0 +1,18 @@
+# Milestone 15: human debug viewer
+
+Start the viewer after the normal setup:
+
+```bash
+uv run python -m sonic_riders_rl.debug_viewer
+```
+
+Open the printed `http://127.0.0.1:8765` URL on the Ubuntu host. The game frame
+is rendered into the left canvas; the right panel separately shows raw race
+mode and live Player 0 telemetry. It never draws debug text over the game.
+
+Controls: `WASD` maps to the left stick, `Z` is A, `X` is B, `Enter` is Start,
+`Q`/`E` are analog triggers, and `R` restores the normal-race fixture. The
+viewer is a deliberately human-paced debugging tool, not a training runner.
+
+Smoke validation served a 640x528 PPM game frame and live Free Race telemetry
+(`game_mode=700`, state delta `3`) through separate localhost endpoints.

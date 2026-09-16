@@ -1,0 +1,13 @@
+[project]
+name = "sonic-riders-rl"
+version = "0.0.0"
+description = "Deterministic emulator-control substrate for Sonic Riders research"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = []
+
+[tool.uv]
+package = false

@@ -49,147 +49,32 @@ race.
 Only after the telemetry/determinism gates pass do we move on to
 Gymnasium/PettingZoo and serious RL training.
 
-## Milestone 1 quick start
+## Setup and validation
 
-All downloaded core files, Dolphin system assets, run data, and reports are
-kept in the repository's ignored `.local/` directory.
-
-```bash
-scripts/bootstrap_dolphin_core.sh
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.probe
-```
-
-The probe expects the authorized ROM at
-`~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz`. It boots the disc,
-requires Dolphin to identify it as `GXEE8P`, tests P1 input, MEM1, an
-in-memory savestate restore, and a 10,000-frame synchronous stepping loop.
-
-## Milestone 2 quick start
+The checked-in Dolphin-libretro source is a pinned Git submodule. Downloaded
+core binaries, Dolphin system assets, build products, run data, and reports
+remain in ignored repository-local directories.
 
 ```bash
+git submodule update --init --recursive
+uv sync --dev
+scripts/setup_dolphin_core.sh
 scripts/build_runner.sh
-python3 -m unittest discover -s tests -v
-python3 -m sonic_riders_rl.milestone2_probe
+uv run python -m unittest discover -s tests -v
+uv run python -m sonic_riders_rl.normal_race_probe
 ```
 
-This read-only telemetry probe resolves the live `players[]` allocation from a
-vanilla `_Main.rel` instruction signature. It also checks a savestate-protected
-MEM1 write/restore and four distinct controller ports. The report is stored at
-`.local/reports/milestone2.json`.
-
-## Milestone 3 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.determinism_probe
-```
-
-This probe restores a single controlled snapshot and replays the same
-four-controller trace twice. It requires matching full-MEM1 and `players[]`
-checksums, then records the result in `.local/reports/milestone3.json`.
-
-## Milestone 4 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.reset_stress_probe
-```
-
-This runs 10,000 snapshot/reset one-frame rollouts in one worker, periodically
-checks its health, and confirms the final restore exactly reproduces the
-baseline MEM1 checksum. Its report is `.local/reports/milestone4.json`.
-
-## Milestone 5 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m unittest discover -s tests -v
-python3 -m sonic_riders_rl.race_probe
-```
-
-This reaches Sonic Riders' unmodified attract-mode race with explicit frame
-stepping, validates eight moving racer records with their `ai_control` flags
-set, and proves a race snapshot
-replays exactly. It writes a diagnostic 640x528 PPM frame and its report below
-the repository's ignored `.local/` directory. It is not yet a human-controlled
-P1 race fixture.
-
-## Milestone 6 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.game_input_probe
-```
-
-This uses one live-race snapshot to show a one-frame native P1 Start input
-takes a different, captured game branch than a neutral trace, while replaying
-exactly from the same state. The attract-mode `ai_control` flags remain set;
-direct P1 steering is not claimed.
-
-## Milestone 7 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m unittest discover -s tests -v
-python3 -m sonic_riders_rl.control_telemetry_probe
-```
-
-This validates that P1 Start and stick input are present in Player 0's bounded,
-in-MEM1 controller record. It keeps the two raw ownership-related bytes,
-`ai_control` and `player_type`, distinct rather than prematurely assigning
-human/CPU semantics.
-
-## Milestone 8 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.frame_semantics_probe
-```
-
-This empirically defines one active-race backend frame as one caller-issued
-`retro_run()`: runner, video, and game-side controller clocks all advance by
-the requested amount in the stock race fixture.
-
-## Milestone 9 result
-
-The current release Dolphin-libretro core crashes before startup when asked to
-use its Null renderer. Hardware remains the only exposed and validated renderer
-for this host/core; see the recorded [compatibility result](docs/milestone-9.md).
-
-## Milestone 10 result
-
-The stock attract transition validates controller-to-player pointer mapping,
-but not direct steering: Player 0/1 can retain `player_type=0` while
-`ai_control=1`. The next prerequisite is a normal menu-driven race setup, not
-an RL environment.
-
-## Milestone 11 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m unittest discover -s tests -v
-python3 -m sonic_riders_rl.game_mode_probe
-```
-
-This resolves the dynamically loaded retail game-mode and mode-detail words
-from a paired `_Main.rel` instruction signature, then records raw state-machine
-values at boot-flow and stock-attract checkpoints. It remains telemetry only.
-
-## Milestone 12 quick start
-
-```bash
-scripts/build_runner.sh
-python3 -m sonic_riders_rl.normal_race_probe
-```
-
-This drives the fresh stock title flow to a normal Free Race, verifies that
-Player 0 is human-owned on GameCube port 0, and proves a forward P1 stick trace
-moves that player relative to a neutral snapshot trace.
+The normal-race probe expects the authorized ROM at
+`~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz`. It verifies the latest
+end-to-end fixture: booting `GXEE8P`, controlled frame stepping, P1 movement in
+a normal race, direct MEM1 access, snapshot replay, and the earlier 10,000-step
+stability gate. See [development setup](docs/development.md) for details and
+the individual milestone records for their exact historical commands/results.
 
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
+- [Development setup](docs/development.md)
 - [Architecture](docs/architecture.md)
 - [Dolphin-libretro backend research](docs/dolphin-libretro.md)
 - [Reverse-engineering notes](docs/reverse-engineering.md)

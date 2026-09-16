@@ -1,0 +1,2 @@
+# Keep uv's cache with other disposable project-local runtime data.
+cache-dir = ".local/uv-cache"

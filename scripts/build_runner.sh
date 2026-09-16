@@ -2,11 +2,11 @@
 set -euo pipefail
 
 project_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-libretro_include="$project_root/.local/upstream/dolphin/Externals/libretro-common/include"
+libretro_include="$project_root/third_party/dolphin-libretro/Externals/libretro-common/include"
 output_dir="$project_root/build"
 
 if [[ ! -f "$libretro_include/libretro.h" ]]; then
-  echo "Missing $libretro_include/libretro.h. Run scripts/bootstrap_dolphin_core.sh first." >&2
+  echo "Missing $libretro_include/libretro.h. Run: git submodule update --init --recursive" >&2
   exit 1
 fi
 

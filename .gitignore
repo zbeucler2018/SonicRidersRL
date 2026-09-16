@@ -1,7 +1,9 @@
-# Local upstream checkouts, build products, and per-run Dolphin data stay in this repository
-# but are not source-controlled.
+# Local core artifacts, build products, virtual environments, and per-run
+# Dolphin data stay in this repository but are not source-controlled.
 .local/
 build/
+.venv/
 __pycache__/
 *.py[cod]
-
+*.egg-info/
+.pytest_cache/

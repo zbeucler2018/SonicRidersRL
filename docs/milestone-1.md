@@ -51,10 +51,12 @@ are introduced.
 ## Running validation
 
 ```bash
-scripts/bootstrap_dolphin_core.sh
+git submodule update --init --recursive
+uv sync --dev
+scripts/setup_dolphin_core.sh
 scripts/build_runner.sh
-python3 -m unittest discover -s tests -v
-python3 -m sonic_riders_rl.probe
+uv run python -m unittest discover -s tests -v
+uv run python -m sonic_riders_rl.probe
 ```
 
 The final command stores the machine-readable result in

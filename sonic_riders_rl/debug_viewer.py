@@ -26,7 +26,7 @@ PAGE = b'''<!doctype html><title>Sonic Riders debug viewer</title><style>
 body{margin:0;background:#15171a;color:#e8eaed;font:14px system-ui}main{display:flex;gap:16px;padding:16px;align-items:flex-start}canvas{image-rendering:auto;background:#000;max-width:66vw}aside{width:360px;min-height:500px;background:#22262b;padding:14px;border-radius:6px}pre{white-space:pre-wrap;margin:0;color:#b8e7ff}.hint{color:#b7c0cb}</style><main><section><canvas id=g width=640 height=528></canvas><p class=hint>WASD: stick | Z: A | X: B | Enter: Start | Q/E: triggers | R: reset fixture</p></section><aside><h2>Live debug telemetry</h2><pre id=t>Booting...</pre></aside></main><script>
 const held=new Set(), c=document.querySelector('#g'),x=c.getContext('2d'),t=document.querySelector('#t');
 function send(){let pads=navigator.getGamepads?navigator.getGamepads():[],g=pads&&pads[0];fetch('/keys',{method:'POST',body:JSON.stringify({keys:[...held],gamepad:g?{axes:[g.axes[0]||0,g.axes[1]||0],buttons:g.buttons.map(b=>b.pressed)}:null})})}
-addEventListener('keydown',e=>{if(e.key==='r'){fetch('/reset',{method:'POST'});return}if(['w','a','s','d','z','x','q','e','Enter'].includes(e.key)){held.add(e.key);send();e.preventDefault()}});
+addEventListener('keydown',e=>{if(e.key==='r'){fetch('/reset',{method:'POST'});return}if(e.key==='t'){fetch('/record',{method:'POST'});return}if(['w','a','s','d','z','x','q','e','Enter'].includes(e.key)){held.add(e.key);send();e.preventDefault()}});
 addEventListener('keyup',e=>{if(held.delete(e.key)){send();e.preventDefault()}});addEventListener('blur',()=>{held.clear();send()});
 async function frame(){let b=await (await fetch('/frame')).arrayBuffer(),u=new Uint8Array(b),p=0,n=0;while(n<3){if(u[p]===35){while(u[p++]!==10);}else if(u[p++]===10)n++}let s=new ImageData(new Uint8ClampedArray(640*528*4),640,528);for(let i=0,j=p;i<640*528;i++,j+=3){s.data[i*4]=u[j];s.data[i*4+1]=u[j+1];s.data[i*4+2]=u[j+2];s.data[i*4+3]=255}x.putImageData(s,0,0)}
 async function tick(){try{send();await frame();t.textContent=JSON.stringify(await (await fetch('/telemetry')).json(),null,2)}catch(_){ }setTimeout(tick,80)}send();tick();</script>'''
@@ -40,6 +40,7 @@ class ViewerState:
         self.host_axes: dict[int, int] = {}
         self.host_buttons: set[int] = set()
         self.reset_requested = False
+        self.record_toggle = False
         self.frame = b"P6\n640 528\n255\n" + bytes(640 * 528 * 3)
         self.telemetry: dict[str, object] = {"status": "booting"}
 
@@ -103,6 +104,9 @@ def _handler(state: ViewerState):
             elif self.path == "/reset":
                 with state.lock: state.reset_requested = True
                 self._send(HTTPStatus.NO_CONTENT, "text/plain", b"")
+            elif self.path == "/record":
+                with state.lock: state.record_toggle = True
+                self._send(HTTPStatus.NO_CONTENT, "text/plain", b"")
             else: self.send_error(HTTPStatus.NOT_FOUND)
         def _send(self, status, content_type, data):
             self.send_response(status); self.send_header("Content-Type", content_type); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
@@ -117,6 +121,7 @@ def main() -> None:
     config = BackendConfig(root / "build/sonic-libretro-runner", root / ".local/core/dolphin_libretro.so", Path("~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz"), root / ".local/runtime/system", root / ".local/runtime/saves/debug-viewer")
     with LibretroDolphinBackend(config) as backend:
         mode, players, _ = boot_normal_free_race(backend); snapshot = backend.snapshot()
+        recording: list[dict[str, object]] = []; recording_active = False; last_trace: str | None = None
         joystick = LinuxJoystick(args.joystick if args.joystick.exists() else None)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         print(f"Open http://127.0.0.1:{args.port} (Ctrl-C to stop)", flush=True)
@@ -124,14 +129,25 @@ def main() -> None:
             while True:
                 started = monotonic()
                 joystick.poll(state)
-                with state.lock: reset = state.reset_requested; state.reset_requested = False
+                with state.lock:
+                    reset = state.reset_requested; state.reset_requested = False
+                    toggle = state.record_toggle; state.record_toggle = False
+                if toggle:
+                    if recording_active:
+                        trace_dir = root / ".local/traces"; trace_dir.mkdir(parents=True, exist_ok=True)
+                        path = trace_dir / f"viewer-{int(monotonic() * 1000)}.json"
+                        path.write_text(json.dumps({"format": "sonic-riders-input-trace-v1", "game_id": "GXEE8P", "frames_per_step": 4, "steps": recording}, indent=2) + "\n")
+                        last_trace = str(path); recording_active = False
+                    else:
+                        backend.restore(snapshot); recording = []; recording_active = True; last_trace = None
                 if reset: backend.restore(snapshot)
-                backend.step({0: state.controller()}, frames=4)
+                controller = state.controller(); backend.step({0: controller}, frames=4)
                 p0 = read_players(backend, players)[0]; game = read_game_mode(backend, mode)
+                if recording_active: recording.append({"controller": asdict(controller), "player_0": asdict(p0), "game_mode": asdict(game)})
                 capture = backend.capture_frame("viewer.ppm").read_bytes()
                 with state.lock:
                     state.frame = capture
-                    state.telemetry = {"game_mode": asdict(game), "player_0": asdict(p0), "host_joystick": {"path": str(args.joystick), "axes": state.host_axes, "buttons": sorted(state.host_buttons)}, "reset_available": True}
+                    state.telemetry = {"game_mode": asdict(game), "player_0": asdict(p0), "host_joystick": {"path": str(args.joystick), "axes": state.host_axes, "buttons": sorted(state.host_buttons)}, "recording": recording_active, "recorded_steps": len(recording), "last_trace": last_trace, "reset_available": True}
                 sleep(max(0, 1 / 15 - (monotonic() - started)))
         except KeyboardInterrupt: pass
         finally: joystick.close(); server.shutdown()

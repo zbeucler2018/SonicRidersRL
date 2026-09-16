@@ -67,10 +67,16 @@ class LinuxJoystick:
     """Tiny dependency-free reader for Linux's stable /dev/input/jsN ABI."""
     _EVENT = struct.Struct("IhBB")
     def __init__(self, path: Path | None):
-        self.fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK) if path else None
+        self.path = path; self.fd: int | None = None
+    def _open(self) -> None:
+        if self.fd is None and self.path and self.path.exists():
+            try: self.fd = os.open(self.path, os.O_RDONLY | os.O_NONBLOCK)
+            except OSError: pass
     def poll(self, state: ViewerState) -> None:
+        self._open()
         if self.fd is None: return
-        while select.select([self.fd], [], [], 0)[0]:
+        try:
+          while select.select([self.fd], [], [], 0)[0]:
             data = os.read(self.fd, self._EVENT.size)
             if len(data) != self._EVENT.size: return
             _, value, event_type, number = self._EVENT.unpack(data); event_type &= 0x7F
@@ -78,6 +84,8 @@ class LinuxJoystick:
                 if event_type == 1:
                     (state.host_buttons.add if value else state.host_buttons.discard)(number)
                 elif event_type == 2: state.host_axes[number] = value
+        except OSError:
+            self.close()
     def close(self) -> None:
         if self.fd is not None: os.close(self.fd)
 

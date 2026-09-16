@@ -176,6 +176,17 @@ This resolves the dynamically loaded retail game-mode and mode-detail words
 from a paired `_Main.rel` instruction signature, then records raw state-machine
 values at boot-flow and stock-attract checkpoints. It remains telemetry only.
 
+## Milestone 12 quick start
+
+```bash
+scripts/build_runner.sh
+python3 -m sonic_riders_rl.normal_race_probe
+```
+
+This drives the fresh stock title flow to a normal Free Race, verifies that
+Player 0 is human-owned on GameCube port 0, and proves a forward P1 stick trace
+moves that player relative to a neutral snapshot trace.
+
 ## Documentation
 
 - [Product Requirements Document](docs/PRD.md)
@@ -205,6 +216,8 @@ values at boot-flow and stock-attract checkpoints. It remains telemetry only.
 - [Milestone 10 investigation result](docs/milestone-10.md)
 - [Milestone 11 architecture decision](docs/milestone-11-architecture.md)
 - [Milestone 11 operation and validation](docs/milestone-11.md)
+- [Milestone 12 architecture decision](docs/milestone-12-architecture.md)
+- [Milestone 12 operation and validation](docs/milestone-12.md)
 
 ## External references
 

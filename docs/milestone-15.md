@@ -15,7 +15,10 @@ Controls: `WASD` maps to the left stick, `Z` is A, `X` is B, `Enter` is Start,
 present, the host's Sunshine/Moonlight virtual controller is read directly from
 `/dev/input/js1` and combined with keyboard input; its raw axes/buttons appear
 in the right panel for mapping checks. The viewer is a deliberately human-paced
-debugging tool, not a training runner.
+debugging tool, not a training runner. It polls controls and advances one
+emulated frame at 60 Hz by default, then captures video separately every two
+frames (30 Hz). This avoids the earlier four-frame/15 Hz input cadence, which
+could add noticeable avoidable input delay on top of remote-streaming latency.
 
 Smoke validation served a 640x528 PPM game frame and live Free Race telemetry
 (`game_mode=700`, state delta `3`) through separate localhost endpoints.

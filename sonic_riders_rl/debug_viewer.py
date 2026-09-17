@@ -29,7 +29,7 @@ function send(){let pads=navigator.getGamepads?navigator.getGamepads():[],g=pads
 addEventListener('keydown',e=>{if(e.key==='r'){fetch('/reset',{method:'POST'});return}if(e.key==='t'){fetch('/record',{method:'POST'});return}if(['w','a','s','d','z','x','q','e','Enter'].includes(e.key)){held.add(e.key);send();e.preventDefault()}});
 addEventListener('keyup',e=>{if(held.delete(e.key)){send();e.preventDefault()}});addEventListener('blur',()=>{held.clear();send()});
 async function frame(){let b=await (await fetch('/frame')).arrayBuffer(),u=new Uint8Array(b),p=0,n=0;while(n<3){if(u[p]===35){while(u[p++]!==10);}else if(u[p++]===10)n++}let s=new ImageData(new Uint8ClampedArray(640*528*4),640,528);for(let i=0,j=p;i<640*528;i++,j+=3){s.data[i*4]=u[j];s.data[i*4+1]=u[j+1];s.data[i*4+2]=u[j+2];s.data[i*4+3]=255}x.putImageData(s,0,0)}
-async function tick(){try{send();await frame();t.textContent=JSON.stringify(await (await fetch('/telemetry')).json(),null,2)}catch(_){ }setTimeout(tick,80)}send();tick();</script>'''
+async function tick(){try{send();await frame();t.textContent=JSON.stringify(await (await fetch('/telemetry')).json(),null,2)}catch(_){ }setTimeout(tick,33)}send();tick();</script>'''
 
 
 class ViewerState:
@@ -87,7 +87,9 @@ class LinuxJoystick:
         except OSError:
             self.close()
     def close(self) -> None:
-        if self.fd is not None: os.close(self.fd)
+        if self.fd is not None:
+            fd, self.fd = self.fd, None
+            os.close(fd)
 
 
 def _handler(state: ViewerState):
@@ -124,15 +126,23 @@ def _handler(state: ViewerState):
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    p = argparse.ArgumentParser(description=__doc__); p.add_argument("--port", type=int, default=8765); p.add_argument("--joystick", type=Path, default=Path("/dev/input/js1")); args = p.parse_args()
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--joystick", type=Path, default=Path("/dev/input/js1"))
+    p.add_argument("--tick-hz", type=int, default=60, help="control/emulation rate")
+    p.add_argument("--capture-every", type=int, default=2, help="capture every Nth emulated frame")
+    args = p.parse_args()
+    if args.tick_hz <= 0 or args.capture_every <= 0:
+        p.error("--tick-hz and --capture-every must be positive")
     state = ViewerState(); server = ThreadingHTTPServer(("127.0.0.1", args.port), _handler(state))
     config = BackendConfig(root / "build/sonic-libretro-runner", root / ".local/core/dolphin_libretro.so", Path("~/Games/GameCube/SonicRiders/sonic_riders_usa.rvz"), root / ".local/runtime/system", root / ".local/runtime/saves/debug-viewer")
     with LibretroDolphinBackend(config) as backend:
         mode, players, _ = boot_normal_free_race(backend); snapshot = backend.snapshot()
         recording: list[dict[str, object]] = []; recording_active = False; last_trace: str | None = None
-        joystick = LinuxJoystick(args.joystick if args.joystick.exists() else None)
+        joystick = LinuxJoystick(args.joystick)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         print(f"Open http://127.0.0.1:{args.port} (Ctrl-C to stop)", flush=True)
+        frame_number = 0
         try:
             while True:
                 started = monotonic()
@@ -144,19 +154,20 @@ def main() -> None:
                     if recording_active:
                         trace_dir = root / ".local/traces"; trace_dir.mkdir(parents=True, exist_ok=True)
                         path = trace_dir / f"viewer-{int(monotonic() * 1000)}.json"
-                        path.write_text(json.dumps({"format": "sonic-riders-input-trace-v1", "game_id": "GXEE8P", "frames_per_step": 4, "steps": recording}, indent=2) + "\n")
+                        path.write_text(json.dumps({"format": "sonic-riders-input-trace-v1", "game_id": "GXEE8P", "frames_per_step": 1, "steps": recording}, indent=2) + "\n")
                         last_trace = str(path); recording_active = False
                     else:
                         backend.restore(snapshot); recording = []; recording_active = True; last_trace = None
                 if reset: backend.restore(snapshot)
-                controller = state.controller(); backend.step({0: controller}, frames=4)
+                controller = state.controller(); backend.step({0: controller}, frames=1)
+                frame_number += 1
                 p0 = read_players(backend, players)[0]; game = read_game_mode(backend, mode)
                 if recording_active: recording.append({"controller": asdict(controller), "player_0": asdict(p0), "game_mode": asdict(game)})
-                capture = backend.capture_frame("viewer.ppm").read_bytes()
+                capture = backend.capture_frame("viewer.ppm").read_bytes() if frame_number % args.capture_every == 0 else None
                 with state.lock:
-                    state.frame = capture
+                    if capture is not None: state.frame = capture
                     state.telemetry = {"game_mode": asdict(game), "player_0": asdict(p0), "host_joystick": {"path": str(args.joystick), "axes": state.host_axes, "buttons": sorted(state.host_buttons)}, "recording": recording_active, "recorded_steps": len(recording), "last_trace": last_trace, "reset_available": True}
-                sleep(max(0, 1 / 15 - (monotonic() - started)))
+                sleep(max(0, 1 / args.tick_hz - (monotonic() - started)))
         except KeyboardInterrupt: pass
         finally: joystick.close(); server.shutdown()
 

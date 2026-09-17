@@ -8,7 +8,7 @@ recording state and saved path. Replay a completed trace with:
 uv run python -m sonic_riders_rl.trace_replay .local/traces/<trace>.json
 ```
 
-Replay requires each recorded four-frame native P1 input and its raw Player 0
+Replay requires each recorded native P1 input frame and its raw Player 0
 and race-mode telemetry to match from the same stock fixture. A saved trace is
 route evidence to investigate; it does not itself validate rails, shortcuts, or
 alternate routes.

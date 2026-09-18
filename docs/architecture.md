@@ -93,4 +93,10 @@ Snapshots are version-bound to the game hash and Dolphin-libretro revision unles
 
 Initially use one Dolphin-libretro instance per process. This gives clean process isolation and makes worker restart straightforward.
 
+The Python backend treats a protocol error, EOF, exited runner, or command
+timeout as fatal to that worker. It force-cleans the process and exposes an
+explicit `relaunch()` operation; runner-owned snapshots are generation-bound
+and cannot be restored after relaunch. See
+[`worker-supervision.md`](worker-supervision.md) for the precise contract.
+
 Remote rollout nodes should host complete actor loops locally and exchange trajectory batches / policy weights, not individual frame actions.

@@ -85,6 +85,7 @@ class Snapshot:
     id: int
     size: int
     checksum: int
+    worker_generation: int
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,10 @@ class LibretroDolphinBackend:
         self._lock = threading.RLock()
         self._memory: MemoryRegion | None = None
         self._library_version: str | None = None
+        # Snapshot IDs are only meaningful inside the worker that allocated
+        # them.  Bump this generation whenever that worker is closed or
+        # replaced so stale reset tokens fail closed.
+        self._worker_generation = 0
 
     @property
     def memory(self) -> MemoryRegion:
@@ -155,7 +160,17 @@ class LibretroDolphinBackend:
     def launch(self) -> MemoryRegion:
         with self._lock:
             if self._process is not None:
-                raise BackendError("backend is already launched")
+                if self._process.poll() is None:
+                    raise BackendError("backend is already launched")
+                self._discard_worker(self._process)
+                self._process = None
+                if self._stderr is not None:
+                    self._stderr.close()
+                    self._stderr = None
+                self._memory = None
+                self._library_version = None
+                self._worker_generation += 1
+            self._worker_generation += 1
             for path in (self.config.runner_path, self.config.core_path, self.config.rom_path):
                 if not path.is_file():
                     raise FileNotFoundError(path)
@@ -276,10 +291,17 @@ class LibretroDolphinBackend:
     def snapshot(self) -> Snapshot:
         fields = self._command("SNAPSHOT", "OK SNAPSHOT")
         return Snapshot(
-            id=int(fields["id"]), size=int(fields["size"]), checksum=int(fields["checksum"], 0)
+            id=int(fields["id"]),
+            size=int(fields["size"]),
+            checksum=int(fields["checksum"], 0),
+            worker_generation=self._worker_generation,
         )
 
     def restore(self, snapshot: Snapshot) -> None:
+        if snapshot.worker_generation != self._worker_generation:
+            raise BackendError(
+                "snapshot belongs to an older worker generation; recreate the fixture after relaunch"
+            )
         self._command(f"RESTORE {snapshot.id}", "OK RESTORED")
 
     def health(self) -> dict[str, int | bool]:
@@ -305,17 +327,25 @@ class LibretroDolphinBackend:
                     if process.poll() is None:
                         self._command_raw(process, "QUIT", "OK BYE", timeout=10.0)
                 except (BackendError, OSError):
-                    process.terminate()
-                try:
-                    process.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=15)
+                    pass
+                self._discard_worker(process)
             if self._stderr is not None:
                 self._stderr.close()
                 self._stderr = None
             self._memory = None
             self._library_version = None
+            self._worker_generation += 1
+
+    def relaunch(self) -> MemoryRegion:
+        """Explicitly replace this worker with a fresh runner process.
+
+        Relaunch only starts the emulator.  It does not recreate a fixture or
+        replay a trace; callers must perform their normal boot/fixture setup
+        again before using reset tokens.
+        """
+
+        self.close()
+        return self.launch()
 
     def __enter__(self) -> "LibretroDolphinBackend":
         self.launch()
@@ -328,9 +358,40 @@ class LibretroDolphinBackend:
         with self._lock:
             if self._process is None:
                 raise BackendError("backend has not been launched")
-            return self._command_raw(
-                self._process, command, prefix, timeout=self.config.command_timeout_seconds
-            )
+            process = self._process
+            try:
+                return self._command_raw(
+                    process, command, prefix, timeout=self.config.command_timeout_seconds
+                )
+            except (BackendError, OSError, ValueError):
+                # A protocol error, EOF, or timeout makes the worker unsafe to
+                # reuse.  Tear it down now so the next launch is clean and no
+                # caller can accidentally continue with partial state.
+                if self._process is process:
+                    self._process = None
+                    self._discard_worker(process)
+                    if self._stderr is not None:
+                        self._stderr.close()
+                        self._stderr = None
+                    self._memory = None
+                    self._library_version = None
+                    self._worker_generation += 1
+                raise
+
+    @staticmethod
+    def _discard_worker(process: subprocess.Popen[str]) -> None:
+        """Best-effort graceful shutdown followed by forced cleanup."""
+
+        try:
+            if process.poll() is None:
+                process.terminate()
+            process.wait(timeout=15)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                process.kill()
+                process.wait(timeout=15)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
 
     def _command_raw(
         self, process: subprocess.Popen[str], command: str, prefix: str, *, timeout: float
